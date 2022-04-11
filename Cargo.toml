@@ -1,0 +1,10 @@
+[workspace]
+
+# Important! wgpu/Bevy needs this!
+resolver = "2"
+
+members = [
+    "agentifa-555nake-client",
+    "agentifa-555nake-protocol",
+    "agentifa-555nake-server",
+]
