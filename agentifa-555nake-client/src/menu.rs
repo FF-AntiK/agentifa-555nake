@@ -5,7 +5,7 @@ use bevy::{
     input::Input,
     math::{Rect, Size, Vec2, Vec3, Vec3Swizzles},
     prelude::{
-        App, BuildChildren, ButtonBundle, Children, Color, Commands, Component,
+        App, BuildChildren, ButtonBundle, ChildBuilder, Children, Color, Commands, Component,
         DespawnRecursiveExt, Entity, EventReader, EventWriter, GlobalTransform, Handle, KeyCode,
         MouseButton, NodeBundle, OrthographicCameraBundle, ParallelSystemDescriptorCoercion,
         Plugin, Query, Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraBundle, With,
@@ -360,6 +360,17 @@ fn setup(
     images: Res<ImageAssets>,
     sounds: Res<AudioAssets>,
 ) {
+    let spawn_button = |cb: &mut ChildBuilder, btn: MenuButton| {
+        cb.spawn_bundle(button())
+            .with_children(|parent| {
+                parent.spawn_bundle(button_text(
+                    fonts.regular.clone(),
+                    format!("{}", btn).as_str(),
+                ));
+            })
+            .insert(btn);
+    };
+
     // play music
     audio.stop();
     audio.set_playback_rate(1.);
@@ -402,68 +413,13 @@ fn setup(
             parent.spawn_bundle(content()).with_children(|parent| {
                 parent.spawn_bundle(border()).with_children(|parent| {
                     parent.spawn_bundle(menu()).with_children(|parent| {
-                        // spawn fullscreen button
-                        const F: MenuButton = MenuButton::FScr;
-                        parent
-                            .spawn_bundle(button())
-                            .with_children(|parent| {
-                                parent.spawn_bundle(button_text(
-                                    fonts.regular.clone(),
-                                    format!("{}", F).as_str(),
-                                ));
-                            })
-                            .insert(F);
+                        spawn_button(parent, MenuButton::FScr);
+                        spawn_button(parent, MenuButton::MultiPlayer);
+                        spawn_button(parent, MenuButton::SinglePlayer);
+                        spawn_button(parent, MenuButton::HighScore);
 
-                        // spawn multi player button
-                        const MP: MenuButton = MenuButton::MultiPlayer;
-                        parent
-                            .spawn_bundle(button())
-                            .with_children(|parent| {
-                                parent.spawn_bundle(button_text(
-                                    fonts.regular.clone(),
-                                    format!("{}", MP).as_str(),
-                                ));
-                            })
-                            .insert(MP);
-
-                        // spawn multi player button
-                        const SP: MenuButton = MenuButton::SinglePlayer;
-                        parent
-                            .spawn_bundle(button())
-                            .with_children(|parent| {
-                                parent.spawn_bundle(button_text(
-                                    fonts.regular.clone(),
-                                    format!("{}", SP).as_str(),
-                                ));
-                            })
-                            .insert(SP);
-
-                        // spawn highscore button
-                        const HS: MenuButton = MenuButton::HighScore;
-                        parent
-                            .spawn_bundle(button())
-                            .with_children(|parent| {
-                                parent.spawn_bundle(button_text(
-                                    fonts.regular.clone(),
-                                    format!("{}", HS).as_str(),
-                                ));
-                            })
-                            .insert(HS);
-
-                        // spawn quit button
                         #[cfg(not(target_arch = "wasm32"))]
-                        {
-                            const Q: MenuButton = MenuButton::Quit;
-                            parent
-                                .spawn_bundle(button())
-                                .with_children(|parent| {
-                                    parent.spawn_bundle(button_text(
-                                        fonts.regular.clone(),
-                                        format!("{}", Q).as_str(),
-                                    ));
-                                })
-                                .insert(Q);
-                        }
+                        spawn_button(parent, MenuButton::Quit);
                     });
                 });
             });
