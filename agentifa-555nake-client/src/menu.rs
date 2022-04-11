@@ -91,7 +91,7 @@ impl fmt::Display for MenuButton {
             MenuButton::FScr => BTN_TXT_FSCR,
             MenuButton::SinglePlayer => BTN_TXT_SINGLEPLAYER,
             MenuButton::MultiPlayer => BTN_TXT_MULTIPLAYER,
-            &MenuButton::HighScore => BTN_TXT_HSC,
+            MenuButton::HighScore => BTN_TXT_HSC,
             #[cfg(not(target_arch = "wasm32"))]
             MenuButton::Quit => BTN_TXT_QUIT,
         };
