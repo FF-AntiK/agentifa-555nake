@@ -138,9 +138,12 @@ struct Player {
 
 #[derive(AssetCollection)]
 struct SpriteSheetAssets {
-    #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 6, rows = 1))]
+    /*#[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 6, rows = 1))]
     #[asset(path = "image/diamond.png")]
-    diamond: Handle<TextureAtlas>,
+    diamond: Handle<TextureAtlas>,*/
+    #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 7, rows = 1))]
+    #[asset(path = "image/easteregg.png")]
+    easteregg: Handle<TextureAtlas>,
 
     #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 8, rows = 1))]
     #[asset(path = "image/brocc.png")]

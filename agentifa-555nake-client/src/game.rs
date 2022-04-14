@@ -33,7 +33,7 @@ const BTN_DIR_IDX: usize = 1;
 const BTN_ESC_IDX: usize = 0;
 const FOOD_ANIM_CNT: usize = 8;
 const FOOD_SPAWN_DUR: f32 = 3.0;
-const GRID_SIZE: u8 = 10;
+const GRID_SIZE: usize = 10;
 const HEAD_ANIM_CNT: usize = 4;
 const HEAD_COLOR_L: f32 = 0.5;
 const HEAD_COLOR_S: f32 = 1.;
@@ -166,8 +166,8 @@ struct Head {
 
 #[derive(Clone, Component, Copy, PartialEq)]
 struct Position {
-    x: u8,
-    y: u8,
+    x: usize,
+    y: usize,
 }
 
 impl fmt::Display for Position {
@@ -179,8 +179,8 @@ impl fmt::Display for Position {
 impl Position {
     fn rnd() -> Self {
         Position {
-            x: random::<u8>() % GRID_SIZE,
-            y: random::<u8>() % GRID_SIZE,
+            x: random::<usize>() % GRID_SIZE,
+            y: random::<usize>() % GRID_SIZE,
         }
     }
 }
@@ -198,7 +198,7 @@ struct ScoreBarContainer;
 
 #[derive(Clone, Component, Copy, Default)]
 struct Segment {
-    index: u8,
+    index: usize,
 }
 
 fn cleanup(mut commands: Commands, query: Query<Entity, With<GameComponent>>) {
@@ -630,7 +630,7 @@ fn update_head_position(
             }
         }
 
-        let count = seg_pos.len() as u8;
+        let count = seg_pos.len();
         let (head_pos, _) = positions.get(head_ent).unwrap();
         let last = seg_pos[(count - 1) as usize].0;
         for (food_ent, pos) in food.iter() {
@@ -646,7 +646,7 @@ fn update_head_position(
                             custom_size: Some(Vec2::ONE),
                             ..Default::default()
                         },
-                        texture_atlas: sheets.diamond.clone(),
+                        texture_atlas: sheets.easteregg.clone(),
                         transform: Transform::from_translation(Vec3::Z),
                         ..Default::default()
                     })

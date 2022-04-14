@@ -1,6 +1,6 @@
 [package]
 name = "agentifa-555nake-protocol"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,3 +9,4 @@ edition = "2021"
 bevy_ecs = { version = "0.6.1", default-features = false }
 naia-derive = { git = "https://github.com/FF-AntiK/naia-1", branch = "testing" }
 naia-shared = { git = "https://github.com/FF-AntiK/naia-1", branch = "testing" }
+nanoserde = "0.1.29"

@@ -26,7 +26,7 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
 name = "agentifa-555nake-client"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "agentifa-555nake-protocol",
  "bevy",
@@ -41,16 +41,17 @@ dependencies = [
 
 [[package]]
 name = "agentifa-555nake-protocol"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bevy_ecs",
  "naia-derive",
  "naia-shared",
+ "nanoserde",
 ]
 
 [[package]]
 name = "agentifa-555nake-server"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "agentifa-555nake-protocol",
  "bevy",
