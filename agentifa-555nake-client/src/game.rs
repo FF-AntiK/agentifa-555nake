@@ -19,6 +19,7 @@ use bevy::{
 };
 use bevy_kira_audio::Audio;
 use naia_bevy_client::Client;
+use naia_shared::DefaultChannels;
 use rand::{
     distributions::Standard,
     prelude::{random, Distribution},
@@ -590,7 +591,7 @@ fn update_head_dir(mut query: Query<(&Head, &mut TextureAtlasSprite, &mut Transf
 
 fn update_head_position(
     audio: Res<Audio>,
-    mut client: Client<Protocol>,
+    mut client: Client<Protocol, DefaultChannels>,
     mut commands: Commands,
     food: Query<(Entity, &Position), (With<Food>, Without<Segment>)>,
     mut heads: Query<(Entity, &mut Head)>,
@@ -670,7 +671,10 @@ fn update_head_position(
         for (pos, seg) in positions.iter() {
             if seg.index != 0 && *pos == *head_pos {
                 if let Ok(score) = scores.get_single() {
-                    client.send_message(&HighScore::new(player.name.clone(), score.count), true);
+                    client.send_message(
+                        DefaultChannels::UnorderedReliable,
+                        &HighScore::new(player.name.clone(), score.count),
+                    );
                 }
 
                 state.set(AppState::Gameover).unwrap();

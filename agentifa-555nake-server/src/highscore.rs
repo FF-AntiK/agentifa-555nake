@@ -8,6 +8,7 @@ use agentifa_555nake_protocol::protocol::{HighScore, HighScoreRank, Protocol};
 use bevy::prelude::{Commands, Entity, Plugin, Query, Res, ResMut};
 use frank::rank_dense_greater;
 use naia_bevy_server::Server;
+use naia_shared::DefaultChannels;
 
 use crate::Global;
 
@@ -90,13 +91,13 @@ fn update_highscore(
     global: Res<Global>,
     mut list: ResMut<HighScoreList>,
     mut query: Query<&mut HighScore>,
-    mut server: Server<Protocol>,
+    mut server: Server<Protocol, DefaultChannels>,
 ) {
     let mut new_entities = HashMap::new();
     for (name, score) in list.entries.iter() {
         if let Some(entity) = list.entities.get(name) {
             let mut hs = query.get_mut(*entity).unwrap();
-            hs.score.set(*list.entries.get(name).unwrap());
+            *hs.score = *list.entries.get(name).unwrap();
         } else {
             new_entities.insert(
                 name.clone(),
@@ -117,13 +118,13 @@ fn update_highscore(
 fn update_ranks(
     list: Res<HighScoreList>,
     mut query: Query<&mut HighScoreRank>,
-    mut server: Server<Protocol>,
+    mut server: Server<Protocol, DefaultChannels>,
 ) {
     for (position, (name, rank)) in list.ranks.iter().enumerate() {
         if let Some(entity) = list.entities.get(name) {
             if let Ok(mut r) = query.get_mut(*entity) {
-                r.position.set(position);
-                r.rank.set(*rank);
+                *r.position = position;
+                *r.rank = *rank;
             } else {
                 server
                     .entity_mut(entity)

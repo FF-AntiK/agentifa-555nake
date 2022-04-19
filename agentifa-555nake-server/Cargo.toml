@@ -1,6 +1,6 @@
 [package]
 name = "agentifa-555nake-server"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 
 [features]
@@ -9,9 +9,9 @@ use-webrtc = ["naia-bevy-server/use-webrtc"]
 
 [dependencies]
 agentifa-555nake-protocol = { path = "../agentifa-555nake-protocol" }
-bevy = { version = "0.6.0", default-features = false }
+bevy = { version = "0.7.0", default-features = false }
 frank = "0.1.3"
-naia-bevy-server = { git = "https://github.com/FF-AntiK/naia-1", branch = "testing" }
-naia-shared = { git = "https://github.com/FF-AntiK/naia-1", branch = "testing" }
+naia-bevy-server = "0.10.0"
+naia-shared = "0.10.0"
 obfstr = "0.3.0"
 serde_json = "1.0.79"

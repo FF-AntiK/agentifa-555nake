@@ -1,18 +1,14 @@
-use std::time::Duration;
-
 use agentifa_555nake_protocol::protocol::{Auth, Protocol};
 use bevy::{
-    asset::{AssetServer, Assets, HandleUntyped},
+    asset::{AssetServer, HandleUntyped},
     ecs::world::World,
     input::{
         keyboard::KeyboardInput,
         mouse::{MouseButtonInput, MouseMotion},
     },
-    math::Vec2,
-    pbr::StandardMaterial,
     prelude::{
-        info, App, ClearColor, Color, EventReader, Handle, Image, ParallelSystemDescriptorCoercion,
-        ResMut, State, SystemLabel,
+        info, App, Assets, ClearColor, Color, EventReader, Handle, Image,
+        ParallelSystemDescriptorCoercion, ResMut, State, SystemLabel, Vec2,
     },
     sprite::TextureAtlas,
     text::Font,
@@ -26,7 +22,7 @@ use gameover::GameOverPlugin;
 use load::LoadPlugin;
 use menu::MenuPlugin;
 use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, Stage};
-use naia_shared::SharedConfig;
+use naia_shared::{DefaultChannels, SharedConfig};
 use obfstr::obfstr;
 use register::RegisterPlugin;
 use vkeyboard::VKeyboardPlugin;
@@ -161,14 +157,14 @@ struct SpriteSheetAssets {
     pimmler: Handle<TextureAtlas>,
 }
 
-fn connect(client: Client<Protocol>, mut net_state: ResMut<State<NetState>>) {
+fn connect(client: Client<Protocol, DefaultChannels>, mut net_state: ResMut<State<NetState>>) {
     info!("Client connected to: {}", client.server_address());
     if vec![NetState::Offline].contains(net_state.current()) {
         net_state.set(NetState::Online).unwrap();
     }
 }
 
-fn disconnect(client: Client<Protocol>, mut net_state: ResMut<State<NetState>>) {
+fn disconnect(client: Client<Protocol, DefaultChannels>, mut net_state: ResMut<State<NetState>>) {
     info!("Client disconnected from: {}", client.server_address());
     if vec![NetState::Online].contains(net_state.current()) {
         net_state.set(NetState::Offline).unwrap();
@@ -202,7 +198,7 @@ fn input_mouse(
     }
 }
 
-fn setup(mut client: Client<Protocol>) {
+fn setup(mut client: Client<Protocol, DefaultChannels>) {
     client.auth(Auth::new(obfstr!(SRV_KEY)));
     client.connect(&format!("{}://{}:{}", SRV_PROT, SRV_ADDR, SRV_PORT));
 }
@@ -236,9 +232,9 @@ pub fn start() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(AudioPlugin)
-        .add_plugin(ClientPlugin::new(
+        .add_plugin(ClientPlugin::<Protocol, DefaultChannels>::new(
             ClientConfig::default(),
-            SharedConfig::new(Protocol::load(), Some(Duration::from_millis(50)), None),
+            SharedConfig::default(),
         ))
         .add_plugin(GamePlugin)
         .add_plugin(GameOverPlugin)

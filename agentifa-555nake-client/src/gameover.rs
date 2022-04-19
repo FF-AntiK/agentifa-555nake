@@ -156,7 +156,7 @@ fn insert_entries(
     let height = windows.get_primary().unwrap().height();
     let visible = |p: f32| -> bool { p >= scroll_pos.0 - height && p <= scroll_pos.0 };
     for (entity, HighScoreRank { position, .. }) in query_invisible.iter() {
-        if visible(ENTRY_SIZE * *position.get() as f32) {
+        if visible(ENTRY_SIZE * *position.clone() as f32) {
             commands.entity(entity).insert_bundle(Text2dBundle {
                 text: Text {
                     sections: vec![
@@ -176,7 +176,7 @@ fn insert_entries(
     }
 
     for (entity, HighScoreRank { position, .. }) in query_visible.iter() {
-        if !visible(ENTRY_SIZE * *position.get() as f32) {
+        if !visible(ENTRY_SIZE * *position.clone() as f32) {
             commands.entity(entity).remove_bundle::<Text2dBundle>();
         }
     }
@@ -380,10 +380,10 @@ fn update_entries(
     for (HighScore { name, score }, HighScoreRank { position, rank }, mut txt, mut tf) in
         query.iter_mut()
     {
-        let n = name.get();
-        let p = *position.get() as f32;
-        let r = *rank.get() + 1;
-        let s = score.get();
+        let n = &*name.clone();
+        let p = *position.clone() as f32;
+        let r = rank.wrapping_add(1);
+        let s = *score.clone();
         txt.sections[0].value = format!("{: >4}. ", r);
         txt.sections[1].value = format!("{: <30} ", n);
         txt.sections[2].value = format!("{: >4}", s);

@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use agentifa_555nake_protocol::protocol::Protocol;
 use bevy::{
     log::LogPlugin,
@@ -11,7 +9,7 @@ use naia_bevy_server::{
     events::{AuthorizationEvent, ConnectionEvent, DisconnectionEvent, MessageEvent},
     Plugin as ServerPlugin, RoomKey, Server, ServerAddrs, ServerConfig, Stage,
 };
-use naia_shared::SharedConfig;
+use naia_shared::{DefaultChannels, SharedConfig};
 use obfstr::obfstr;
 
 mod highscore;
@@ -42,11 +40,11 @@ struct Global {
 
 fn authorize(
     mut event_reader: EventReader<AuthorizationEvent<Protocol>>,
-    mut server: Server<Protocol>,
+    mut server: Server<Protocol, DefaultChannels>,
 ) {
     for event in event_reader.iter() {
         if let AuthorizationEvent(user_key, Protocol::Auth(auth_message)) = event {
-            let key = auth_message.key.get();
+            let key = &*auth_message.key;
             if key == obfstr!(SRV_KEY) {
                 server.accept_connection(&user_key);
             } else {
@@ -58,7 +56,7 @@ fn authorize(
 
 fn connect<'world, 'state>(
     mut event_reader: EventReader<ConnectionEvent>,
-    mut server: Server<'world, 'state, Protocol>,
+    mut server: Server<'world, 'state, Protocol, DefaultChannels>,
     global: Res<Global>,
 ) {
     for event in event_reader.iter() {
@@ -79,37 +77,37 @@ fn disconnect(mut event_reader: EventReader<DisconnectionEvent>) {
     }
 }
 
+fn highscore_message(
+    mut event_reader: EventReader<MessageEvent<Protocol, DefaultChannels>>,
+    mut highscore: ResMut<HighScoreList>,
+) {
+    for event in event_reader.iter() {
+        if let MessageEvent(_, _, Protocol::HighScore(msg)) = event {
+            highscore.insert((*msg.name).clone(), *msg.score);
+        }
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(MinimalPlugins)
         .add_plugin(HighScorePlugin)
         .add_plugin(LogPlugin)
-        .add_plugin(ServerPlugin::new(
+        .add_plugin(ServerPlugin::<Protocol, DefaultChannels>::new(
             ServerConfig::default(),
-            SharedConfig::new(Protocol::load(), Some(Duration::from_millis(50)), None),
+            SharedConfig::default(),
         ))
         .add_startup_system(setup)
         .add_system_to_stage(Stage::ReceiveEvents, authorize)
         .add_system_to_stage(Stage::ReceiveEvents, connect)
         .add_system_to_stage(Stage::ReceiveEvents, disconnect)
-        .add_system_to_stage(Stage::ReceiveEvents, message)
+        .add_system_to_stage(Stage::ReceiveEvents, highscore_message)
         .add_system_to_stage(Stage::Tick, tick)
         .run();
 }
 
-fn message(
-    mut event_reader: EventReader<MessageEvent<Protocol>>,
-    mut highscore: ResMut<HighScoreList>,
-) {
-    for event in event_reader.iter() {
-        if let MessageEvent(_, Protocol::HighScore(msg)) = event {
-            highscore.insert(msg.name.get().clone(), *msg.score.get());
-        }
-    }
-}
-
-fn setup(mut commands: Commands, mut server: Server<Protocol>) {
-    server.listen(ServerAddrs::new(
+fn setup(mut commands: Commands, mut server: Server<Protocol, DefaultChannels>) {
+    server.listen(&ServerAddrs::new(
         format!("{}:{}", SRV_ADDR, SRV_PORT).parse().unwrap(),
         format!("{}:{}", SRV_ADDR, SRV_PORT_WRTC).parse().unwrap(),
         &format!("{}://{}:{}", SRV_PROT, SRV_ADDR_PUB, SRV_PORT_WRTC),
@@ -120,7 +118,7 @@ fn setup(mut commands: Commands, mut server: Server<Protocol>) {
     });
 }
 
-fn tick(mut server: Server<Protocol>) {
+fn tick(mut server: Server<Protocol, DefaultChannels>) {
     for (_, user_key, entity) in server.scope_checks() {
         server.user_scope(&user_key).include(&entity);
     }
