@@ -646,7 +646,7 @@ fn update_head_position(
                             custom_size: Some(Vec2::ONE),
                             ..Default::default()
                         },
-                        texture_atlas: sheets.easteregg.clone(),
+                        texture_atlas: sheets.diamond.clone(),
                         transform: Transform::from_translation(Vec3::Z),
                         ..Default::default()
                     })
