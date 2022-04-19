@@ -1,6 +1,6 @@
 [package]
 name = "agentifa-555nake-client"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,8 +18,8 @@ bevy = { version = "0.7.0", default-features = false, features = [
 ] }
 bevy_asset_loader = { version = "0.10.0", features = ["2d"] }
 bevy_kira_audio = "0.9.0"
-naia-bevy-client = "0.10.0"
-naia-shared = "0.10.0"
+naia-bevy-client = { git = "https://github.com/FF-AntiK/naia-1", branch = "ipv6_support" }
+naia-shared = { git = "https://github.com/FF-AntiK/naia-1", branch = "ipv6_support" }
 obfstr = "0.3.0"
 rand = "0.8.5"
 wasm-bindgen = "0.2.79"
