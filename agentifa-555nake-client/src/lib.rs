@@ -81,6 +81,12 @@ struct AudioAssets {
     game_over: Handle<AudioSource>,
     #[asset(path = "audio/music_game.ogg")]
     game_music: Handle<AudioSource>,
+    #[asset(path = "audio/oink1.ogg")]
+    menu_click_1: Handle<AudioSource>,
+    #[asset(path = "audio/oink2.ogg")]
+    menu_click_2: Handle<AudioSource>,
+    #[asset(path = "audio/oink3.ogg")]
+    menu_click_3: Handle<AudioSource>,
     #[asset(path = "audio/music_menu.ogg")]
     menu_music: Handle<AudioSource>,
     #[asset(path = "audio/music_menu_intro.ogg")]

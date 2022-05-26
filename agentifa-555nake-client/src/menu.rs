@@ -16,6 +16,7 @@ use bevy::{
     window::{WindowMode, Windows},
 };
 use bevy_kira_audio::Audio;
+use rand::random;
 
 use crate::{AppState, AudioAssets, FontAssets, ImageAssets, InputState};
 
@@ -319,7 +320,13 @@ fn navigation(
                 MenuButton::Quit => exit.send(AppExit),
             },
             Interaction::Hovered if e.btn != mnu.button => {
-                audio.play(sounds.game_eat.clone());
+                let click = match random::<u8>() % 3 {
+                    0 => sounds.menu_click_1.clone(),
+                    1 => sounds.menu_click_2.clone(),
+                    _ => sounds.menu_click_3.clone(),
+                };
+
+                audio.play(click);
                 mnu.button = e.btn;
             }
             _ => {}
