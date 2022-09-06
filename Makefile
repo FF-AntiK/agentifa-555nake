@@ -32,7 +32,7 @@ build_cross:
 	SRV_KEY=$(SRV_KEY) cargo build -p $(NAME_CLIENT) --target=$(TGT) --release
 
 build_server:
-	SRV_KEY=$(SRV_KEY) cargo build -p $(NAME_SERVER) --features use-webrtc --release
+	SRV_KEY=$(SRV_KEY) cargo build -p $(NAME_SERVER) --release
 
 clean:
 	rm -rf $(DST)

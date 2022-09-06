@@ -1,4 +1,4 @@
-FROM rust
+FROM rust:bullseye
 ARG SRV_KEY
 ARG SRV_ADDR
 ARG SRV_PORT

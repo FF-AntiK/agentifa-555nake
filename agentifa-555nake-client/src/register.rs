@@ -1,14 +1,13 @@
 use bevy::{
-    core_pipeline::ClearColor,
+    core_pipeline::clear_color::ClearColor,
     input::Input,
-    math::Size,
     prelude::{
-        App, BuildChildren, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader,
-        KeyCode, NodeBundle, ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, State,
-        SystemSet, TextBundle, UiCameraBundle, With,
+        App, BuildChildren, Camera2dBundle, Color, Commands, Component, DespawnRecursiveExt,
+        Entity, EventReader, KeyCode, NodeBundle, ParallelSystemDescriptorCoercion, Plugin, Query,
+        Res, ResMut, State, SystemSet, TextBundle, UiCameraConfig, With,
     },
     text::{HorizontalAlign, Text, TextAlignment, TextStyle, VerticalAlign},
-    ui::{AlignItems, JustifyContent, Style, Val},
+    ui::{AlignItems, JustifyContent, Size, Style, Val},
     window::ReceivedCharacter,
 };
 
@@ -70,7 +69,7 @@ fn input_keyboard(
 
     if input.pressed(KeyCode::Return) {
         input.release(KeyCode::Return);
-        app_state.pop().unwrap();
+        app_state.set(AppState::Game).unwrap();
         return;
     }
 
@@ -96,7 +95,7 @@ fn input_vkeyboard(
                 }
             }
             Key::Return => {
-                app_state.pop().unwrap();
+                app_state.set(AppState::Game).unwrap();
             }
             _ => name.push_str(btn.to_string().as_str()),
         }
@@ -106,8 +105,9 @@ fn input_vkeyboard(
 fn setup(mut clear: ResMut<ClearColor>, mut commands: Commands, fonts: Res<FontAssets>) {
     clear.0 = Color::BLACK;
     commands
-        .spawn_bundle(UiCameraBundle::default())
-        .insert(RegisterComponent);
+        .spawn_bundle(Camera2dBundle::default())
+        .insert(RegisterComponent)
+        .insert(UiCameraConfig { show_ui: true });
 
     commands
         .spawn_bundle(NodeBundle {
@@ -123,34 +123,34 @@ fn setup(mut clear: ResMut<ClearColor>, mut commands: Commands, fonts: Res<FontA
         })
         .with_children(|p| {
             p.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     "Enter your Agent ID:",
                     TextStyle {
                         color: Color::CYAN,
                         font: fonts.regular.clone(),
                         font_size: FNTSZE,
                     },
-                    TextAlignment {
-                        horizontal: HorizontalAlign::Center,
-                        vertical: VerticalAlign::Center,
-                    },
-                ),
+                )
+                .with_alignment(TextAlignment {
+                    horizontal: HorizontalAlign::Center,
+                    vertical: VerticalAlign::Center,
+                }),
                 ..Default::default()
             });
 
             p.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     "",
                     TextStyle {
                         color: Color::PINK,
                         font: fonts.regular.clone(),
                         font_size: FNTSZE,
                     },
-                    TextAlignment {
-                        horizontal: HorizontalAlign::Center,
-                        vertical: VerticalAlign::Center,
-                    },
-                ),
+                )
+                .with_alignment(TextAlignment {
+                    horizontal: HorizontalAlign::Center,
+                    vertical: VerticalAlign::Center,
+                }),
                 ..Default::default()
             })
             .insert(TextInput);

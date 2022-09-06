@@ -1,24 +1,26 @@
 use std::fmt;
 
 use bevy::{
-    core_pipeline::ClearColor,
+    core_pipeline::clear_color::ClearColor,
     input::Input,
-    math::{Rect, Size, Vec2, Vec3, Vec3Swizzles},
+    math::{Vec2, Vec3, Vec3Swizzles},
     prelude::{
-        App, BuildChildren, ButtonBundle, ChildBuilder, Children, Color, Commands, Component,
-        DespawnRecursiveExt, Entity, EventReader, EventWriter, GlobalTransform, Handle, KeyCode,
-        MouseButton, NodeBundle, OrthographicCameraBundle, ParallelSystemDescriptorCoercion,
-        Plugin, Query, Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraBundle, With,
+        App, BuildChildren, ButtonBundle, Camera2dBundle, ChildBuilder, Children, Color, Commands,
+        Component, DespawnRecursiveExt, Entity, EventReader, EventWriter, GlobalTransform, Handle,
+        KeyCode, MouseButton, NodeBundle, ParallelSystemDescriptorCoercion, Plugin, Query, Res,
+        ResMut, State, SystemSet, TextBundle, Transform, UiCameraConfig, With,
     },
     sprite::{Sprite, SpriteBundle},
     text::{Font, Text, TextStyle},
-    ui::{AlignItems, FlexDirection, Interaction, JustifyContent, Style, UiColor, Val},
+    ui::{
+        AlignItems, FlexDirection, Interaction, JustifyContent, Size, Style, UiColor, UiRect, Val,
+    },
     window::{WindowMode, Windows},
 };
-use bevy_kira_audio::Audio;
+use bevy_kira_audio::{Audio, AudioControl};
 use rand::random;
 
-use crate::{AppState, AudioAssets, FontAssets, ImageAssets, InputState};
+use crate::{AppState, AudioAssets, FontAssets, GameType, ImageAssets, InputState};
 
 #[cfg(not(target_arch = "wasm32"))]
 use bevy::app::AppExit;
@@ -139,7 +141,7 @@ fn border() -> NodeBundle {
     NodeBundle {
         color: BRD_CLR.into(),
         style: Style {
-            border: Rect::all(Val::Px(BRD_BRD)),
+            border: UiRect::all(Val::Px(BRD_BRD)),
             size: Size::new(Val::Px(BRD_SZE), Val::Auto),
             ..Default::default()
         },
@@ -163,17 +165,16 @@ fn button() -> ButtonBundle {
 fn button_text(font: Handle<Font>, label: &str) -> TextBundle {
     TextBundle {
         style: Style {
-            margin: Rect::all(Val::Px(BTN_TXT_MGN)),
+            margin: UiRect::all(Val::Px(BTN_TXT_MGN)),
             ..Default::default()
         },
-        text: Text::with_section(
+        text: Text::from_section(
             label,
             TextStyle {
                 color: BTN_TXT_CLR,
                 font,
                 font_size: BTN_TXT_SZE,
             },
-            Default::default(),
         ),
         ..Default::default()
     }
@@ -247,8 +248,8 @@ fn input_mouse(
     if let Some(cursor) = windows.get_primary().unwrap().cursor_position() {
         for (btn, tf) in buttons.iter() {
             let btn_sze = Vec2::new(BRD_SZE, BTN_SZE);
-            let btn_pos = tf.translation.xy();
-            let rect = Rect {
+            let btn_pos = tf.translation().xy();
+            let rect = UiRect {
                 left: btn_pos.x - 0.5 * btn_sze.x,
                 right: btn_pos.x + 0.5 * btn_sze.x,
                 top: btn_pos.y + 0.5 * btn_sze.y,
@@ -283,7 +284,7 @@ fn menu() -> NodeBundle {
             align_items: AlignItems::Center,
             flex_direction: FlexDirection::ColumnReverse,
             justify_content: JustifyContent::Center,
-            padding: Rect::all(Val::Px(MNU_PAD)),
+            padding: UiRect::all(Val::Px(MNU_PAD)),
             size: Size::new(Val::Percent(UI_FILL), Val::Percent(UI_FILL)),
             ..Default::default()
         },
@@ -294,6 +295,7 @@ fn menu() -> NodeBundle {
 fn navigation(
     audio: Res<Audio>,
     mut clear: ResMut<ClearColor>,
+    mut game_type: ResMut<GameType>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: EventWriter<AppExit>,
     mut query: Query<(&MenuButton, &Children, &mut UiColor)>,
     mut reader: EventReader<MenuEvent>,
@@ -313,8 +315,14 @@ fn navigation(
                     WindowMode::Windowed => WindowMode::BorderlessFullscreen,
                     _ => WindowMode::Windowed,
                 }),
-                MenuButton::MultiPlayer => state_app.set(AppState::MultiPlayer).unwrap(),
-                MenuButton::SinglePlayer => state_app.set(AppState::SinglePlayer).unwrap(),
+                MenuButton::MultiPlayer => {
+                    *game_type = GameType::MultiPlayer;
+                    state_app.set(AppState::Register).unwrap();
+                }
+                MenuButton::SinglePlayer => {
+                    *game_type = GameType::SinglePlayer;
+                    state_app.set(AppState::Register).unwrap();
+                }
                 MenuButton::HighScore => state_app.set(AppState::Gameover).unwrap(),
                 #[cfg(not(target_arch = "wasm32"))]
                 MenuButton::Quit => exit.send(AppExit),
@@ -381,16 +389,13 @@ fn setup(
     // play music
     audio.stop();
     audio.set_playback_rate(1.);
-    audio.play_looped_with_intro(sounds.menu_music_intro.clone(), sounds.menu_music.clone());
+    audio.play(sounds.menu_music.clone()).loop_from(16.);
 
-    // spawn cameras
+    // spawn camera
     commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(MenuComponent);
-
-    commands
-        .spawn_bundle(UiCameraBundle::default())
-        .insert(MenuComponent);
+        .spawn_bundle(Camera2dBundle::default())
+        .insert(MenuComponent)
+        .insert(UiCameraConfig { show_ui: true });
 
     // spawn background
     commands
@@ -445,7 +450,7 @@ fn title() -> NodeBundle {
         style: Style {
             align_items: AlignItems::FlexEnd,
             justify_content: JustifyContent::Center,
-            margin: Rect::all(Val::Px(MNU_PAD)),
+            margin: UiRect::all(Val::Px(MNU_PAD)),
             size: Size::new(Val::Percent(UI_FILL), Val::Percent(UI_FILL)),
             ..Default::default()
         },
@@ -456,14 +461,13 @@ fn title() -> NodeBundle {
 
 fn title_emoji(font: Handle<Font>) -> TextBundle {
     TextBundle {
-        text: Text::with_section(
+        text: Text::from_section(
             TITLE_EMJ,
             TextStyle {
                 color: TITLE_CLR,
                 font,
                 font_size: TITLE_SZE,
             },
-            Default::default(),
         ),
         ..Default::default()
     }
@@ -471,14 +475,13 @@ fn title_emoji(font: Handle<Font>) -> TextBundle {
 
 fn title_text(font: Handle<Font>) -> TextBundle {
     TextBundle {
-        text: Text::with_section(
+        text: Text::from_section(
             TITLE_TXT,
             TextStyle {
                 color: TITLE_CLR,
                 font,
                 font_size: TITLE_SZE,
             },
-            Default::default(),
         ),
         ..Default::default()
     }

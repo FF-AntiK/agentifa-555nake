@@ -1,23 +1,23 @@
 use std::{f32::consts::PI, fmt};
 
 use agentifa_555nake_protocol::protocol::{HighScore, Protocol};
+
 use bevy::{
-    core::{Time, Timer},
-    core_pipeline::ClearColor,
+    core_pipeline::clear_color::ClearColor,
     input::Input,
-    math::{Quat, Rect, Size, Vec2, Vec3, Vec4},
+    math::{Quat, Vec2, Vec3, Vec4},
     prelude::{
-        App, BuildChildren, Color, Commands, Component, DespawnRecursiveExt, Entity, KeyCode,
-        MouseButton, NodeBundle, OrthographicCameraBundle, ParallelSystemDescriptorCoercion,
-        Plugin, Query, Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraBundle, With,
-        Without,
+        App, BuildChildren, Camera2dBundle, Color, Commands, Component, DespawnRecursiveExt,
+        Entity, KeyCode, MouseButton, NodeBundle, ParallelSystemDescriptorCoercion, Plugin, Query,
+        Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraConfig, With, Without,
     },
     sprite::{Sprite, SpriteBundle, SpriteSheetBundle, TextureAtlasSprite},
     text::{Text, TextStyle},
-    ui::{AlignItems, JustifyContent, Style, Val},
+    time::{Time, Timer},
+    ui::{AlignItems, JustifyContent, Size, Style, UiRect, Val},
     window::Windows,
 };
-use bevy_kira_audio::Audio;
+use bevy_kira_audio::{Audio, AudioControl};
 use naia_bevy_client::Client;
 use naia_shared::DefaultChannels;
 use rand::{
@@ -48,37 +48,25 @@ const STARTPOS: Position = Position { x: 5, y: 5 };
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        let with_singleplayer_systems = |s: SystemSet| -> SystemSet {
-            s.with_system(input_keyboard.after(InputState::Keyboard))
-                .with_system(input_mouse.after(InputState::Mouse))
-                .with_system(update_background)
-                .with_system(update_buttons.after(InputState::Mouse))
-                .with_system(update_foodspawner)
-                .with_system(update_head_color)
-                .with_system(update_head_dir)
-                .with_system(update_head_position)
-                .with_system(update_positions)
-                .with_system(update_sheets)
-                .with_system(update_scorebar)
-                .with_system(update_scorebar_container)
-                .with_system(update_scorecoin)
-                .with_system(update_scoretext)
-        };
-
-        let with_multiplayer_systems = |s: SystemSet| -> SystemSet { with_singleplayer_systems(s) };
-
-        app.add_system_set(SystemSet::on_enter(AppState::SinglePlayer).with_system(register))
-            .add_system_set(SystemSet::on_exit(AppState::SinglePlayer).with_system(cleanup))
-            .add_system_set(SystemSet::on_resume(AppState::SinglePlayer).with_system(setup))
-            .add_system_set(SystemSet::on_enter(AppState::MultiPlayer).with_system(register))
-            .add_system_set(SystemSet::on_exit(AppState::MultiPlayer).with_system(cleanup))
-            .add_system_set(SystemSet::on_resume(AppState::MultiPlayer).with_system(setup))
-            .add_system_set(with_singleplayer_systems(SystemSet::on_update(
-                AppState::SinglePlayer,
-            )))
-            .add_system_set(with_multiplayer_systems(SystemSet::on_update(
-                AppState::MultiPlayer,
-            )));
+        app.add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
+            .add_system_set(SystemSet::on_exit(AppState::Game).with_system(cleanup))
+            .add_system_set(
+                SystemSet::on_update(AppState::Game)
+                    .with_system(input_keyboard.after(InputState::Keyboard))
+                    .with_system(input_mouse.after(InputState::Mouse))
+                    .with_system(update_background)
+                    .with_system(update_buttons.after(InputState::Mouse))
+                    .with_system(update_foodspawner)
+                    .with_system(update_head_color)
+                    .with_system(update_head_dir)
+                    .with_system(update_head_position)
+                    .with_system(update_positions)
+                    .with_system(update_sheets)
+                    .with_system(update_scorebar)
+                    .with_system(update_scorebar_container)
+                    .with_system(update_scorecoin)
+                    .with_system(update_scoretext),
+            );
     }
 }
 
@@ -89,7 +77,7 @@ struct Animation {
 
 #[derive(Component)]
 struct AudioTrack {
-    rate: f32,
+    rate: f64,
 }
 
 #[derive(Component)]
@@ -264,13 +252,13 @@ fn input_mouse(
         let wnd = windows.get_primary().unwrap();
         if let Some(mut cursor) = wnd.cursor_position() {
             cursor -= 0.5 * Vec2::new(wnd.width(), wnd.height());
-            let contains = |p: Vec2, a: Rect<f32>| {
+            let contains = |p: Vec2, a: UiRect<f32>| {
                 p.x > a.left && p.x < a.right && p.y > a.bottom && p.y < a.top
             };
 
             for (btn, tf) in buttons.iter() {
                 let offs = 0.5 * tf.scale;
-                let rect = Rect {
+                let rect = UiRect {
                     bottom: tf.translation.y - offs.y,
                     left: tf.translation.x - offs.x,
                     right: tf.translation.x + offs.x,
@@ -286,10 +274,6 @@ fn input_mouse(
             }
         }
     }
-}
-
-fn register(mut state: ResMut<State<AppState>>) {
-    state.push(AppState::Register).unwrap();
 }
 
 fn setup(
@@ -322,19 +306,17 @@ fn setup(
     // play music
     audio.stop();
     audio.set_playback_rate(1.);
-    audio.play_looped(sounds.game_music.clone());
+    audio.play(sounds.game_music.clone()).looped();
     commands
         .spawn()
         .insert(AudioTrack { rate: 1. })
         .insert(GameComponent);
 
-    // spawn cameras
+    // spawn camera
     commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(GameComponent);
-    commands
-        .spawn_bundle(UiCameraBundle::default())
-        .insert(GameComponent);
+        .spawn_bundle(Camera2dBundle::default())
+        .insert(GameComponent)
+        .insert(UiCameraConfig { show_ui: true });
 
     // spawn background
     commands
@@ -386,14 +368,13 @@ fn setup(
 
                     // spawn score text
                     p.spawn_bundle(TextBundle {
-                        text: Text::with_section(
+                        text: Text::from_section(
                             "",
                             TextStyle {
                                 color: SCORETEXT_COLOR,
                                 font: fonts.regular.clone(),
                                 font_size: 0.,
                             },
-                            Default::default(),
                         ),
                         ..Default::default()
                     })

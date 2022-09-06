@@ -1,17 +1,17 @@
 use std::f32::consts::PI;
 
 use bevy::{
-    core::{FixedTimestep, Time},
     ecs::schedule::ShouldRun,
-    math::{Quat, Size, Vec2},
+    math::{Quat, Vec2},
     prelude::{
-        App, AssetServer, BuildChildren, Color, Commands, Component, DespawnRecursiveExt, Entity,
-        Handle, Image, In, IntoChainSystem, NodeBundle, OrthographicCameraBundle, Plugin, Query,
-        Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraBundle, With,
+        App, AssetServer, BuildChildren, Camera2dBundle, Color, Commands, Component,
+        DespawnRecursiveExt, Entity, Handle, Image, In, IntoChainSystem, NodeBundle, Plugin, Query,
+        Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraConfig, With,
     },
     sprite::SpriteBundle,
-    text::{Font, Text, TextAlignment, TextStyle},
-    ui::{AlignItems, JustifyContent, Style, Val},
+    text::{Font, Text, TextStyle},
+    time::{FixedTimestep, Time},
+    ui::{AlignItems, JustifyContent, Size, Style, Val},
     window::Windows,
 };
 
@@ -92,11 +92,9 @@ fn rotate(mut query: Query<&mut Rotation>, time: Res<Time>) {
 }
 
 fn setup(cmd: &mut Commands, fnt: Handle<Font>, img: Handle<Image>, txt: &str) {
-    cmd.spawn_bundle(UiCameraBundle::default())
-        .insert(LoadComponent);
-
-    cmd.spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(LoadComponent);
+    cmd.spawn_bundle(Camera2dBundle::default())
+        .insert(LoadComponent)
+        .insert(UiCameraConfig { show_ui: true });
 
     cmd.spawn_bundle(SpriteBundle {
         sprite: bevy::sprite::Sprite {
@@ -152,14 +150,13 @@ fn setup_load(assets: Res<AssetServer>, mut commands: Commands) {
 
 fn text(font: Handle<Font>, value: &str) -> TextBundle {
     TextBundle {
-        text: Text::with_section(
+        text: Text::from_section(
             value,
             TextStyle {
                 font,
                 font_size: LOADSZE,
                 color: LOADCLR,
             },
-            TextAlignment::default(),
         ),
         ..Default::default()
     }

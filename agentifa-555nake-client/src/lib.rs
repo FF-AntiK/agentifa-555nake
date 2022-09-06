@@ -1,7 +1,7 @@
 use agentifa_555nake_protocol::protocol::{Auth, Protocol};
 use bevy::{
     asset::{AssetServer, HandleUntyped},
-    ecs::world::World,
+    ecs::world::{Mut, World},
     input::{
         keyboard::KeyboardInput,
         mouse::{MouseButtonInput, MouseMotion},
@@ -10,12 +10,13 @@ use bevy::{
         info, App, Assets, ClearColor, Color, EventReader, Handle, Image,
         ParallelSystemDescriptorCoercion, ResMut, State, SystemLabel, Vec2,
     },
+    render::texture::ImageSettings,
     sprite::TextureAtlas,
     text::Font,
     window::{WindowDescriptor, WindowMode, WindowResizeConstraints, Windows},
     DefaultPlugins,
 };
-use bevy_asset_loader::{AssetCollection, AssetLoader};
+use bevy_asset_loader::prelude::{AssetCollection, LoadingState, LoadingStateAppExt};
 use bevy_kira_audio::{AudioPlugin, AudioSource};
 use game::GamePlugin;
 use gameover::GameOverPlugin;
@@ -65,12 +66,11 @@ const WND_SZE_Y: f32 = 660.0;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum AppState {
     Connect,
+    Game,
     Gameover,
     Load,
     Menu,
-    MultiPlayer,
     Register,
-    SinglePlayer,
 }
 
 #[derive(AssetCollection)]
@@ -89,8 +89,6 @@ struct AudioAssets {
     menu_click_3: Handle<AudioSource>,
     #[asset(path = "audio/music_menu.ogg")]
     menu_music: Handle<AudioSource>,
-    #[asset(path = "audio/music_menu_intro.ogg")]
-    menu_music_intro: Handle<AudioSource>,
 }
 
 #[derive(AssetCollection)]
@@ -101,6 +99,11 @@ struct FontAssets {
     emoji: Handle<Font>,
     #[asset(path = "font/RobotoMono-Regular.ttf")]
     regular: Handle<Font>,
+}
+
+enum GameType {
+    MultiPlayer,
+    SinglePlayer,
 }
 
 #[derive(AssetCollection)]
@@ -211,17 +214,10 @@ fn setup(mut client: Client<Protocol, DefaultChannels>) {
 
 #[wasm_bindgen]
 pub fn start() {
-    let mut app = App::new();
-
-    AssetLoader::new(AppState::Load)
-        .continue_to_state(AppState::Connect)
-        .with_collection::<AudioAssets>()
-        .with_collection::<FontAssets>()
-        .with_collection::<ImageAssets>()
-        .with_collection::<SpriteSheetAssets>()
-        .build(&mut app);
-
-    app.insert_resource(ClearColor(WND_CLR))
+    App::new()
+        .insert_resource(ClearColor(WND_CLR))
+        .insert_resource(GameType::SinglePlayer)
+        .insert_resource(ImageSettings::default_nearest())
         .insert_resource(InputState::Mouse)
         .insert_resource(Player::default())
         .insert_resource(WindowDescriptor {
@@ -236,6 +232,14 @@ pub fn start() {
             width: WND_SZE_X,
             ..Default::default()
         })
+        .add_loading_state(
+            LoadingState::new(AppState::Load)
+                .continue_to_state(AppState::Connect)
+                .with_collection::<AudioAssets>()
+                .with_collection::<FontAssets>()
+                .with_collection::<ImageAssets>()
+                .with_collection::<SpriteSheetAssets>(),
+        )
         .add_plugins(DefaultPlugins)
         .add_plugin(AudioPlugin)
         .add_plugin(ClientPlugin::<Protocol, DefaultChannels>::new(

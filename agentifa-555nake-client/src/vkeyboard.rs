@@ -2,13 +2,14 @@ use std::fmt::{Display, Formatter};
 
 use bevy::{
     input::Input,
-    math::{Rect, Vec2},
+    math::Vec2,
     prelude::{
         App, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader, EventWriter,
-        MouseButton, OrthographicCameraBundle, ParallelSystemDescriptorCoercion, Plugin, Query,
-        Res, SystemSet, Transform, With,
+        MouseButton, ParallelSystemDescriptorCoercion, Plugin, Query, Res, SystemSet, Transform,
+        With,
     },
     sprite::{SpriteSheetBundle, TextureAtlasSprite},
+    ui::UiRect,
     window::Windows,
 };
 
@@ -1203,13 +1204,13 @@ fn input_mouse(
         let wnd = windows.get_primary().unwrap();
         if let Some(mut cursor) = wnd.cursor_position() {
             cursor -= 0.5 * Vec2::new(wnd.width(), wnd.height());
-            let contains = |p: Vec2, a: Rect<f32>| {
+            let contains = |p: Vec2, a: UiRect<f32>| {
                 p.x > a.left && p.x < a.right && p.y > a.bottom && p.y < a.top
             };
 
             for (btn, tf) in query.iter() {
                 let offs = 0.5 * tf.scale;
-                let rect = Rect {
+                let rect = UiRect {
                     bottom: tf.translation.y - offs.y,
                     left: tf.translation.x - offs.x,
                     right: tf.translation.x + offs.x,
@@ -1262,10 +1263,10 @@ fn listen_buttons(
     }
 }
 
-fn setup(mut commands: Commands, mut event_writer: EventWriter<Button>) {
-    commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(VKeyboardComponent);
+fn setup(/*mut commands: Commands,*/ mut event_writer: EventWriter<Button>) {
+    /*commands
+    .spawn_bundle(Camera2dBundle::default())
+    .insert(VKeyboardComponent);*/
 
     event_writer.send(Button {
         case: Case::Upper,

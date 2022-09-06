@@ -1,23 +1,22 @@
 use agentifa_555nake_protocol::protocol::{HighScore, HighScoreRank};
 use bevy::{
-    core::Time,
-    core_pipeline::ClearColor,
+    core_pipeline::clear_color::ClearColor,
     input::Input,
-    math::{Rect, Size, Vec2, Vec3},
+    math::{Vec2, Vec3},
     prelude::{
-        App, BuildChildren, Color, Commands, Component, DespawnRecursiveExt, Entity, KeyCode,
-        MouseButton, NodeBundle, OrthographicCameraBundle, ParallelSystemDescriptorCoercion,
-        Plugin, Query, Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraBundle, With,
-        Without,
+        App, BuildChildren, Camera2dBundle, Color, Commands, Component, DespawnRecursiveExt,
+        Entity, KeyCode, MouseButton, NodeBundle, ParallelSystemDescriptorCoercion, Plugin, Query,
+        Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraConfig, With, Without,
     },
     sprite::{Sprite, SpriteBundle, SpriteSheetBundle, TextureAtlasSprite},
     text::{
         HorizontalAlign, Text, Text2dBundle, TextAlignment, TextSection, TextStyle, VerticalAlign,
     },
-    ui::{AlignItems, FlexDirection, JustifyContent, Style, Val},
+    time::Time,
+    ui::{AlignItems, FlexDirection, JustifyContent, Size, Style, UiRect, Val},
     window::Windows,
 };
-use bevy_kira_audio::Audio;
+use bevy_kira_audio::{Audio, AudioControl};
 
 use crate::{AppState, ImageAssets, InputState, SpriteSheetAssets};
 use crate::{AudioAssets, FontAssets};
@@ -116,12 +115,13 @@ fn input_mouse(
     let wnd = windows.get_primary().unwrap();
     if let Some(mut cursor) = wnd.cursor_position() {
         cursor -= 0.5 * Vec2::new(wnd.width(), wnd.height());
-        let contains =
-            |p: Vec2, a: Rect<f32>| p.x > a.left && p.x < a.right && p.y > a.bottom && p.y < a.top;
+        let contains = |p: Vec2, a: UiRect<f32>| {
+            p.x > a.left && p.x < a.right && p.y > a.bottom && p.y < a.top
+        };
 
         let tf = buttons.get_single().unwrap();
         let offs = 0.5 * tf.scale;
-        let rect = Rect {
+        let rect = UiRect {
             bottom: tf.translation.y - offs.y,
             left: tf.translation.x - offs.x,
             right: tf.translation.x + offs.x,
@@ -196,18 +196,18 @@ fn setup(
     credit_count.0 = 0;
     let mut credit = |cmd: &mut Commands, text: &str| {
         cmd.spawn_bundle(Text2dBundle {
-            text: Text::with_section(
+            text: Text::from_section(
                 text,
                 TextStyle {
                     font: fonts.regular.clone(),
                     font_size: ENTRY_SIZE,
                     color: NAME_COLOR,
                 },
-                TextAlignment {
-                    vertical: VerticalAlign::Center,
-                    horizontal: HorizontalAlign::Center,
-                },
-            ),
+            )
+            .with_alignment(TextAlignment {
+                vertical: VerticalAlign::Center,
+                horizontal: HorizontalAlign::Center,
+            }),
             transform: Transform::from_translation(Vec3::Z),
             ..Default::default()
         })
@@ -221,14 +221,12 @@ fn setup(
     clear.0 = Color::BLACK;
     audio.stop();
     audio.set_playback_rate(1.);
-    audio.play_looped(sounds.game_over.clone());
+    audio.play(sounds.game_over.clone()).looped();
 
     commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(GameOverComponent);
-    commands
-        .spawn_bundle(UiCameraBundle::default())
-        .insert(GameOverComponent);
+        .spawn_bundle(Camera2dBundle::default())
+        .insert(GameOverComponent)
+        .insert(UiCameraConfig { show_ui: true });
 
     commands
         .spawn_bundle(SpriteSheetBundle {
@@ -281,14 +279,13 @@ fn setup(
             })
             .with_children(|p| {
                 p.spawn_bundle(TextBundle {
-                    text: Text::with_section(
+                    text: Text::from_section(
                         TITLE_TEXT,
                         TextStyle {
                             color: TITLE_COLOR,
                             font: fonts.bold.clone(),
                             font_size: TITLE_SIZE,
                         },
-                        Default::default(),
                     ),
                     ..Default::default()
                 });
