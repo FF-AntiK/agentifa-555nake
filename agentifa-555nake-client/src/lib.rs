@@ -7,7 +7,7 @@ use bevy::{
         mouse::{MouseButtonInput, MouseMotion},
     },
     prelude::{
-        info, App, Assets, ClearColor, Color, EventReader, Handle, Image,
+        App, Assets, ClearColor, Color, EventReader, Handle, Image,
         ParallelSystemDescriptorCoercion, ResMut, State, SystemLabel, Vec2,
     },
     render::texture::ImageSettings,
@@ -101,11 +101,6 @@ struct FontAssets {
     regular: Handle<Font>,
 }
 
-enum GameType {
-    MultiPlayer,
-    SinglePlayer,
-}
-
 #[derive(AssetCollection)]
 struct ImageAssets {
     #[asset(path = "image/impfliebe.png")]
@@ -166,15 +161,13 @@ struct SpriteSheetAssets {
     pimmler: Handle<TextureAtlas>,
 }
 
-fn connect(client: Client<Protocol, DefaultChannels>, mut net_state: ResMut<State<NetState>>) {
-    info!("Client connected to: {}", client.server_address());
+fn connect(mut net_state: ResMut<State<NetState>>) {
     if vec![NetState::Offline].contains(net_state.current()) {
         net_state.set(NetState::Online).unwrap();
     }
 }
 
-fn disconnect(client: Client<Protocol, DefaultChannels>, mut net_state: ResMut<State<NetState>>) {
-    info!("Client disconnected from: {}", client.server_address());
+fn disconnect(mut net_state: ResMut<State<NetState>>) {
     if vec![NetState::Online].contains(net_state.current()) {
         net_state.set(NetState::Offline).unwrap();
     }
@@ -216,7 +209,6 @@ fn setup(mut client: Client<Protocol, DefaultChannels>) {
 pub fn start() {
     App::new()
         .insert_resource(ClearColor(WND_CLR))
-        .insert_resource(GameType::SinglePlayer)
         .insert_resource(ImageSettings::default_nearest())
         .insert_resource(InputState::Mouse)
         .insert_resource(Player::default())

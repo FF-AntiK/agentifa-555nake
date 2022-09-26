@@ -20,7 +20,7 @@ use bevy::{
 use bevy_kira_audio::{Audio, AudioControl};
 use rand::random;
 
-use crate::{AppState, AudioAssets, FontAssets, GameType, ImageAssets, InputState};
+use crate::{AppState, AudioAssets, FontAssets, ImageAssets, InputState};
 
 #[cfg(not(target_arch = "wasm32"))]
 use bevy::app::AppExit;
@@ -36,8 +36,7 @@ const BTN_TXT_CLR_HOV: Color = Color::BLACK;
 const BTN_TXT_HSC: &str = "High555coré";
 const BTN_TXT_MGN: f32 = 10.0; // PX
 const BTN_TXT_FSCR: &str = "Toggle Fullscreen";
-const BTN_TXT_MULTIPLAYER: &str = "Multipolar Player";
-const BTN_TXT_SINGLEPLAYER: &str = "555inglé Player";
+const BTN_TXT_START: &str = "555tart Gamé";
 const BTN_TXT_SZE: f32 = 30.0; // Font Size
 const BTN_SZE: f32 = 50.0; // Px
 const MNU_CLR: Color = Color::rgb(0.15, 0.15, 0.15);
@@ -73,8 +72,7 @@ struct Background;
 #[derive(Clone, Component, Copy, PartialEq)]
 enum MenuButton {
     FScr,
-    MultiPlayer,
-    SinglePlayer,
+    Start,
     HighScore,
     #[cfg(not(target_arch = "wasm32"))]
     Quit,
@@ -92,8 +90,7 @@ impl fmt::Display for MenuButton {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let str = match self {
             MenuButton::FScr => BTN_TXT_FSCR,
-            MenuButton::SinglePlayer => BTN_TXT_SINGLEPLAYER,
-            MenuButton::MultiPlayer => BTN_TXT_MULTIPLAYER,
+            MenuButton::Start => BTN_TXT_START,
             MenuButton::HighScore => BTN_TXT_HSC,
             #[cfg(not(target_arch = "wasm32"))]
             MenuButton::Quit => BTN_TXT_QUIT,
@@ -105,9 +102,8 @@ impl fmt::Display for MenuButton {
 impl MenuButton {
     fn next(&self) -> Self {
         match *self {
-            MenuButton::FScr => MenuButton::MultiPlayer,
-            MenuButton::MultiPlayer => MenuButton::SinglePlayer,
-            MenuButton::SinglePlayer => MenuButton::HighScore,
+            MenuButton::FScr => MenuButton::Start,
+            MenuButton::Start => MenuButton::HighScore,
             #[cfg(not(target_arch = "wasm32"))]
             MenuButton::HighScore => MenuButton::Quit,
             #[cfg(target_arch = "wasm32")]
@@ -123,9 +119,8 @@ impl MenuButton {
             MenuButton::FScr => MenuButton::Quit,
             #[cfg(target_arch = "wasm32")]
             MenuButton::FScr => MenuButton::HighScore,
-            MenuButton::MultiPlayer => MenuButton::FScr,
-            MenuButton::SinglePlayer => MenuButton::MultiPlayer,
-            MenuButton::HighScore => MenuButton::SinglePlayer,
+            MenuButton::Start => MenuButton::FScr,
+            MenuButton::HighScore => MenuButton::Start,
             #[cfg(not(target_arch = "wasm32"))]
             MenuButton::Quit => MenuButton::HighScore,
         }
@@ -295,7 +290,6 @@ fn menu() -> NodeBundle {
 fn navigation(
     audio: Res<Audio>,
     mut clear: ResMut<ClearColor>,
-    mut game_type: ResMut<GameType>,
     #[cfg(not(target_arch = "wasm32"))] mut exit: EventWriter<AppExit>,
     mut query: Query<(&MenuButton, &Children, &mut UiColor)>,
     mut reader: EventReader<MenuEvent>,
@@ -315,14 +309,7 @@ fn navigation(
                     WindowMode::Windowed => WindowMode::BorderlessFullscreen,
                     _ => WindowMode::Windowed,
                 }),
-                MenuButton::MultiPlayer => {
-                    *game_type = GameType::MultiPlayer;
-                    state_app.set(AppState::Register).unwrap();
-                }
-                MenuButton::SinglePlayer => {
-                    *game_type = GameType::SinglePlayer;
-                    state_app.set(AppState::Register).unwrap();
-                }
+                MenuButton::Start => state_app.set(AppState::Register).unwrap(),
                 MenuButton::HighScore => state_app.set(AppState::Gameover).unwrap(),
                 #[cfg(not(target_arch = "wasm32"))]
                 MenuButton::Quit => exit.send(AppExit),
@@ -426,8 +413,7 @@ fn setup(
                 parent.spawn_bundle(border()).with_children(|parent| {
                     parent.spawn_bundle(menu()).with_children(|parent| {
                         spawn_button(parent, MenuButton::FScr);
-                        spawn_button(parent, MenuButton::MultiPlayer);
-                        spawn_button(parent, MenuButton::SinglePlayer);
+                        spawn_button(parent, MenuButton::Start);
                         spawn_button(parent, MenuButton::HighScore);
 
                         #[cfg(not(target_arch = "wasm32"))]
@@ -440,7 +426,7 @@ fn setup(
 
     // spawn menu state
     commands.spawn().insert(MenuComponent).insert(MenuState {
-        button: MenuButton::SinglePlayer,
+        button: MenuButton::Start,
     });
 }
 

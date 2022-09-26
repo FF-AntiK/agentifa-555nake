@@ -5,7 +5,7 @@ use std::{
 };
 
 use agentifa_555nake_protocol::protocol::{HighScore, HighScoreRank, Protocol};
-use bevy::prelude::{Commands, Entity, Plugin, Query, Res, ResMut};
+use bevy::prelude::{Commands, DetectChanges, Entity, Plugin, Query, Res, ResMut};
 use frank::rank_dense_greater;
 use naia_bevy_server::Server;
 use naia_shared::DefaultChannels;
@@ -93,13 +93,19 @@ fn update_highscore(
     mut query: Query<&mut HighScore>,
     mut server: Server<Protocol, DefaultChannels>,
 ) {
-    let mut new_entities = HashMap::new();
+    if !list.is_changed() {
+        return;
+    }
+
+    let list = &mut *list;
     for (name, score) in list.entries.iter() {
         if let Some(entity) = list.entities.get(name) {
             let mut hs = query.get_mut(*entity).unwrap();
-            *hs.score = *list.entries.get(name).unwrap();
+            if *hs.score != *score {
+                *hs.score = *score;
+            }
         } else {
-            new_entities.insert(
+            list.entities.insert(
                 name.clone(),
                 server
                     .spawn()
@@ -109,10 +115,6 @@ fn update_highscore(
             );
         }
     }
-
-    for (name, entity) in new_entities.iter() {
-        list.entities.insert(name.clone(), *entity);
-    }
 }
 
 fn update_ranks(
@@ -120,11 +122,19 @@ fn update_ranks(
     mut query: Query<&mut HighScoreRank>,
     mut server: Server<Protocol, DefaultChannels>,
 ) {
+    if !list.is_changed() {
+        return;
+    }
+
     for (position, (name, rank)) in list.ranks.iter().enumerate() {
         if let Some(entity) = list.entities.get(name) {
             if let Ok(mut r) = query.get_mut(*entity) {
-                *r.position = position;
-                *r.rank = *rank;
+                if *r.position != position {
+                    *r.position = position;
+                }
+                if *r.rank != *rank {
+                    *r.rank = *rank;
+                }
             } else {
                 server
                     .entity_mut(entity)

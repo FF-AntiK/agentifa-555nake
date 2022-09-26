@@ -1,10 +1,9 @@
 [package]
 name = "agentifa-555nake-protocol"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bevy_ecs = { version = "0.8.1", default-features = false }
-naia-shared = "0.12.1"
+naia-shared = "0.13.0"
+rand = "0.8.5"

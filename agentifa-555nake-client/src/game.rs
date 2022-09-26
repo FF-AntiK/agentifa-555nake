@@ -1,49 +1,48 @@
-use std::{f32::consts::PI, fmt};
+use std::collections::HashMap;
 
-use agentifa_555nake_protocol::protocol::{HighScore, Protocol};
+use agentifa_555nake_protocol::protocol::{
+    DirCmd, Direction, Food, Head, Position, Protocol, QuitCmd, Score, Segment, StartCmd, GRID_SIZE,
+};
 
 use bevy::{
     core_pipeline::clear_color::ClearColor,
     input::Input,
     math::{Quat, Vec2, Vec3, Vec4},
     prelude::{
-        App, BuildChildren, Camera2dBundle, Color, Commands, Component, DespawnRecursiveExt,
-        Entity, KeyCode, MouseButton, NodeBundle, ParallelSystemDescriptorCoercion, Plugin, Query,
-        Res, ResMut, State, SystemSet, TextBundle, Transform, UiCameraConfig, With, Without,
+        Added, App, BuildChildren, Camera2dBundle, ChangeTrackers, Changed, Color, Commands,
+        Component, DespawnRecursiveExt, Entity, EventReader, KeyCode, MouseButton, NodeBundle, Or,
+        ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, State, SystemSet, TextBundle,
+        Timer, Transform, UiCameraConfig, With, Without,
     },
     sprite::{Sprite, SpriteBundle, SpriteSheetBundle, TextureAtlasSprite},
     text::{Text, TextStyle},
-    time::{Time, Timer},
+    time::Time,
     ui::{AlignItems, JustifyContent, Size, Style, UiRect, Val},
     window::Windows,
 };
 use bevy_kira_audio::{Audio, AudioControl};
-use naia_bevy_client::Client;
+use naia_bevy_client::{events::MessageEvent, Client};
 use naia_shared::DefaultChannels;
-use rand::{
-    distributions::Standard,
-    prelude::{random, Distribution},
-};
+use rand::prelude::random;
 
 use crate::{AppState, ImageAssets, InputState, Player, SpriteSheetAssets};
 use crate::{AudioAssets, FontAssets};
 
+const AUDIO_RATE_FAKTOR: f64 = 0.01;
 const BG_COLOR: Color = Color::rgb(0.5, 0.5, 0.5);
 const BTN_COLOR: Color = Color::rgba(1., 1., 1., 0.5);
 const BTN_DIR_IDX: usize = 1;
 const BTN_ESC_IDX: usize = 0;
 const FOOD_ANIM_CNT: usize = 8;
-const FOOD_SPAWN_DUR: f32 = 3.0;
-const GRID_SIZE: usize = 10;
 const HEAD_ANIM_CNT: usize = 4;
+const HEAD_COLOR: Color = Color::WHITE;
 const HEAD_COLOR_L: f32 = 0.5;
 const HEAD_COLOR_S: f32 = 1.;
 const HEAD_COLOR_SPEED: f32 = 0.01;
-const HEAD_MOV_DUR: f32 = 0.5;
+const INVINCIBLE_DUR: f32 = 0.25;
 const SCOREBAR_COLOR: Color = Color::GRAY;
 const SCORETEXT_COLOR: Color = Color::YELLOW;
 const SEGMENT_ANIM_CNT: usize = 6;
-const STARTPOS: Position = Position { x: 5, y: 5 };
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
@@ -52,21 +51,31 @@ impl Plugin for GamePlugin {
             .add_system_set(SystemSet::on_exit(AppState::Game).with_system(cleanup))
             .add_system_set(
                 SystemSet::on_update(AppState::Game)
+                    .with_system(assign_message)
                     .with_system(input_keyboard.after(InputState::Keyboard))
                     .with_system(input_mouse.after(InputState::Mouse))
+                    .with_system(quit_command)
+                    .with_system(update_audio)
                     .with_system(update_background)
                     .with_system(update_buttons.after(InputState::Mouse))
-                    .with_system(update_foodspawner)
+                    .with_system(update_dimensions)
+                    .with_system(update_foods)
+                    .with_system(update_heads)
                     .with_system(update_head_color)
                     .with_system(update_head_dir)
-                    .with_system(update_head_position)
                     .with_system(update_positions)
+                    .with_system(update_scores)
+                    .with_system(update_segments)
                     .with_system(update_sheets)
                     .with_system(update_scorebar)
                     .with_system(update_scorebar_container)
                     .with_system(update_scorecoin)
                     .with_system(update_scoretext),
-            );
+            )
+            .insert_resource(Dimensions::default())
+            .insert_resource(Scores {
+                list: HashMap::new(),
+            });
     }
 }
 
@@ -76,12 +85,16 @@ struct Animation {
 }
 
 #[derive(Component)]
-struct AudioTrack {
-    rate: f64,
-}
-
-#[derive(Component)]
 struct Background;
+
+#[derive(Default)]
+struct Dimensions {
+    blk: f32,
+    wnd_h: f32,
+    wnd_w: f32,
+    wnd_max: f32,
+    wnd_min: f32,
+}
 
 #[derive(Component)]
 enum Button {
@@ -92,92 +105,29 @@ enum Button {
 #[derive(Component)]
 struct Coin;
 
-#[derive(Clone, Copy, Debug)]
-enum Direction {
-    Down,
-    Left,
-    Right,
-    Up,
-}
-
-impl Distribution<Direction> for Standard {
-    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Direction {
-        match rng.gen_range(0..3) {
-            0 => Direction::Down,
-            1 => Direction::Left,
-            2 => Direction::Right,
-            _ => Direction::Up,
-        }
-    }
-}
-
-impl Direction {
-    fn angle(self) -> f32 {
-        PI * match self {
-            Direction::Left => 0.0,
-            Direction::Right => 1.0,
-            _ => 0.5,
-        }
-    }
-
-    fn flip_x(self) -> bool {
-        match self {
-            Direction::Up => true,
-            _ => false,
-        }
-    }
-
-    fn flip_y(self) -> bool {
-        match self {
-            Direction::Right => true,
-            _ => false,
-        }
-    }
-}
-
-#[derive(Component, Default)]
-struct Food;
-
 #[derive(Component)]
-struct FoodSpawner {
+struct HeadLocal {
+    color_dst: Color,
+    color_src: Color,
+    invincible: bool,
     timer: Timer,
 }
 
 #[derive(Component)]
-struct GameComponent;
+struct Local;
 
 #[derive(Component)]
-struct Head {
-    color: Color,
-    dir: Direction,
-    timer: Timer,
+struct Own;
+
+#[derive(Component)]
+struct Remote;
+
+struct Scores {
+    list: HashMap<Entity, usize>,
 }
 
-#[derive(Clone, Component, Copy, PartialEq)]
-struct Position {
-    x: usize,
-    y: usize,
-}
-
-impl fmt::Display for Position {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({};{})", self.x, self.y)
-    }
-}
-
-impl Position {
-    fn rnd() -> Self {
-        Position {
-            x: random::<usize>() % GRID_SIZE,
-            y: random::<usize>() % GRID_SIZE,
-        }
-    }
-}
-
-#[derive(Component, Default)]
-struct Score {
-    count: usize,
-}
+#[derive(Component)]
+struct ScoreText;
 
 #[derive(Component)]
 struct ScoreBar;
@@ -185,24 +135,44 @@ struct ScoreBar;
 #[derive(Component)]
 struct ScoreBarContainer;
 
-#[derive(Clone, Component, Copy, Default)]
-struct Segment {
-    index: usize,
-}
-
-fn cleanup(mut commands: Commands, query: Query<Entity, With<GameComponent>>) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+fn assign_message(
+    client: Client<Protocol, DefaultChannels>,
+    mut commands: Commands,
+    mut event_reader: EventReader<MessageEvent<Protocol, DefaultChannels>>,
+) {
+    for event in event_reader.iter() {
+        if let MessageEvent(_, Protocol::AssignMsg(msg)) = event {
+            commands
+                .entity(msg.entity.get(&client).unwrap())
+                .insert(Own);
+        }
     }
 }
 
-fn get_blocksize(wnd: f32) -> f32 {
-    wnd / (GRID_SIZE + 1) as f32
+fn cleanup(
+    mut client: Client<Protocol, DefaultChannels>,
+    mut commands: Commands,
+    local: Query<Entity, With<Local>>,
+    remote: Query<Entity, With<Remote>>,
+) {
+    client.send_message(DefaultChannels::UnorderedReliable, &QuitCmd::new());
+    for entity in local.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    for entity in remote.iter() {
+        commands
+            .entity(entity)
+            .remove::<Animation>()
+            .remove::<HeadLocal>()
+            .remove::<Remote>()
+            .remove_bundle::<SpriteSheetBundle>();
+    }
 }
 
 fn input_keyboard(
     mut app_state: ResMut<State<AppState>>,
-    mut heads: Query<&mut Head>,
+    mut client: Client<Protocol, DefaultChannels>,
     mut input: ResMut<Input<KeyCode>>,
     input_state: Res<InputState>,
 ) {
@@ -213,32 +183,43 @@ fn input_keyboard(
     if input.pressed(KeyCode::Escape) {
         input.release(KeyCode::Escape);
         app_state.set(AppState::Menu).unwrap();
+        return;
     }
 
-    for mut head in heads.iter_mut() {
-        if input.pressed(KeyCode::Down) {
-            input.release(KeyCode::Down);
-            head.dir = Direction::Down;
-        }
-        if input.pressed(KeyCode::Left) {
-            input.release(KeyCode::Left);
-            head.dir = Direction::Left;
-        }
-        if input.pressed(KeyCode::Right) {
-            input.release(KeyCode::Right);
-            head.dir = Direction::Right;
-        }
-        if input.pressed(KeyCode::Up) {
-            input.release(KeyCode::Up);
-            head.dir = Direction::Up;
-        }
+    if input.pressed(KeyCode::Down) {
+        input.release(KeyCode::Down);
+        client.send_message(
+            DefaultChannels::UnorderedReliable,
+            &DirCmd::new(Direction::Down),
+        );
+    }
+    if input.pressed(KeyCode::Left) {
+        input.release(KeyCode::Left);
+        client.send_message(
+            DefaultChannels::UnorderedReliable,
+            &DirCmd::new(Direction::Left),
+        );
+    }
+    if input.pressed(KeyCode::Right) {
+        input.release(KeyCode::Right);
+        client.send_message(
+            DefaultChannels::UnorderedReliable,
+            &DirCmd::new(Direction::Right),
+        );
+    }
+    if input.pressed(KeyCode::Up) {
+        input.release(KeyCode::Up);
+        client.send_message(
+            DefaultChannels::UnorderedReliable,
+            &DirCmd::new(Direction::Up),
+        );
     }
 }
 
 fn input_mouse(
     mut app_state: ResMut<State<AppState>>,
     buttons: Query<(&Button, &Transform)>,
-    mut heads: Query<&mut Head>,
+    mut client: Client<Protocol, DefaultChannels>,
     input: Res<Input<MouseButton>>,
     input_state: Res<InputState>,
     windows: Res<Windows>,
@@ -248,7 +229,6 @@ fn input_mouse(
     }
 
     if input.just_pressed(MouseButton::Left) {
-        let mut head = heads.iter_mut().next().unwrap();
         let wnd = windows.get_primary().unwrap();
         if let Some(mut cursor) = wnd.cursor_position() {
             cursor -= 0.5 * Vec2::new(wnd.width(), wnd.height());
@@ -268,7 +248,8 @@ fn input_mouse(
                 if contains(cursor, rect) {
                     match *btn {
                         Button::Escape => app_state.set(AppState::Menu).unwrap(),
-                        Button::Direction(dir) => head.dir = dir,
+                        Button::Direction(dir) => client
+                            .send_message(DefaultChannels::UnorderedReliable, &DirCmd::new(dir)),
                     }
                 }
             }
@@ -276,12 +257,25 @@ fn input_mouse(
     }
 }
 
+fn quit_command(
+    mut app_state: ResMut<State<AppState>>,
+    mut event_reader: EventReader<MessageEvent<Protocol, DefaultChannels>>,
+) {
+    for event in event_reader.iter() {
+        if let MessageEvent(_, Protocol::QuitCmd(_)) = event {
+            app_state.set(AppState::Gameover).unwrap();
+        }
+    }
+}
+
 fn setup(
     audio: Res<Audio>,
     mut clear: ResMut<ClearColor>,
+    mut client: Client<Protocol, DefaultChannels>,
     mut commands: Commands,
     fonts: Res<FontAssets>,
     images: Res<ImageAssets>,
+    player: Res<Player>,
     sheets: Res<SpriteSheetAssets>,
     sounds: Res<AudioAssets>,
 ) {
@@ -297,8 +291,8 @@ fn setup(
             transform: Transform::from_translation(2. * Vec3::Z),
             ..Default::default()
         })
-        .insert(GameComponent)
-        .insert(Button::Direction(dir));
+        .insert(Button::Direction(dir))
+        .insert(Local);
     };
 
     clear.0 = Color::DARK_GRAY;
@@ -307,15 +301,11 @@ fn setup(
     audio.stop();
     audio.set_playback_rate(1.);
     audio.play(sounds.game_music.clone()).looped();
-    commands
-        .spawn()
-        .insert(AudioTrack { rate: 1. })
-        .insert(GameComponent);
 
     // spawn camera
     commands
         .spawn_bundle(Camera2dBundle::default())
-        .insert(GameComponent)
+        .insert(Local)
         .insert(UiCameraConfig { show_ui: true });
 
     // spawn background
@@ -330,7 +320,7 @@ fn setup(
             ..Default::default()
         })
         .insert(Background)
-        .insert(GameComponent);
+        .insert(Local);
 
     // spawn scores
     commands
@@ -378,38 +368,13 @@ fn setup(
                         ),
                         ..Default::default()
                     })
-                    .insert(Score::default());
+                    .insert(ScoreText);
                 })
                 .insert(ScoreBar);
             })
             .insert(ScoreBarContainer);
         })
-        .insert(GameComponent);
-
-    // spawn head
-    let clr: Color = Color::PINK;
-    commands
-        .spawn_bundle(SpriteSheetBundle {
-            sprite: TextureAtlasSprite {
-                color: clr,
-                custom_size: Some(Vec2::ONE),
-                ..Default::default()
-            },
-            texture_atlas: sheets.pimmler.clone(),
-            transform: Transform::from_translation(Vec3::Z),
-            ..Default::default()
-        })
-        .insert(Animation {
-            count: HEAD_ANIM_CNT,
-        })
-        .insert(GameComponent)
-        .insert(Head {
-            color: clr,
-            dir: rand::random(),
-            timer: Timer::from_seconds(HEAD_MOV_DUR, true),
-        })
-        .insert(STARTPOS)
-        .insert(Segment::default());
+        .insert(Local);
 
     // spawn buttons
     spawn_dirbtn(&mut commands, Direction::Down);
@@ -428,141 +393,177 @@ fn setup(
             transform: Transform::from_translation(2. * Vec3::Z),
             ..Default::default()
         })
-        .insert(GameComponent)
-        .insert(Button::Escape);
+        .insert(Button::Escape)
+        .insert(Local);
 
-    // spawn food spawner
-    commands
-        .spawn()
-        .insert(FoodSpawner {
-            timer: Timer::from_seconds(FOOD_SPAWN_DUR, false),
-        })
-        .insert(GameComponent);
+    // spawn player
+    client.send_message(
+        DefaultChannels::UnorderedReliable,
+        &StartCmd::new(player.name.clone()),
+    );
 }
 
-fn transform_position(blk: f32, pos: Position) -> Vec2 {
-    let grid = Vec2::new(blk * (GRID_SIZE as f32), blk * ((GRID_SIZE + 1) as f32));
-    let offs = 0.5 * (grid - blk);
-    Vec2::new(pos.x as f32, pos.y as f32) * blk - offs
+fn update_audio(audio: Res<Audio>, query: Query<&Score, (Changed<Score>, With<Own>)>) {
+    for score in query.iter() {
+        audio.set_playback_rate(1. + AUDIO_RATE_FAKTOR * *score.level as f64);
+    }
 }
 
 fn update_background(
     mut backgrounds: Query<&mut Transform, With<Background>>,
-    windows: Res<Windows>,
+    dimensions: Res<Dimensions>,
 ) {
-    let wnd = windows.get_primary().unwrap();
-    let blk = get_blocksize(f32::min(wnd.height(), wnd.width()));
-    for mut tf in backgrounds.iter_mut() {
-        tf.translation.y = -0.5 * blk;
-        tf.scale = Vec2::splat(blk * (GRID_SIZE as f32)).extend(tf.scale.z);
+    if dimensions.is_changed() {
+        let mut tf = backgrounds.single_mut();
+        tf.translation.y = -0.5 * dimensions.blk;
+        tf.scale = Vec2::splat(dimensions.blk * (GRID_SIZE as f32)).extend(tf.scale.z);
+    }
+}
+
+fn update_dimensions(mut dimensions: ResMut<Dimensions>, windows: Res<Windows>) {
+    if windows.is_changed() {
+        let wnd = windows.get_primary().unwrap();
+        dimensions.wnd_h = wnd.height();
+        dimensions.wnd_w = wnd.width();
+        dimensions.wnd_max = f32::max(dimensions.wnd_h, dimensions.wnd_w);
+        dimensions.wnd_min = f32::min(dimensions.wnd_h, dimensions.wnd_w);
+        dimensions.blk = dimensions.wnd_min / (GRID_SIZE + 1) as f32;
     }
 }
 
 fn update_buttons(
     mut buttons: Query<(&Button, &mut TextureAtlasSprite, &mut Transform)>,
+    dimensions: Res<Dimensions>,
     input_state: Res<InputState>,
-    windows: Res<Windows>,
 ) {
-    let wnd = windows.get_primary().unwrap();
-    let wnd_sze = Vec2::new(wnd.width(), wnd.height());
-    let blk = get_blocksize(wnd_sze.min_element());
+    let wnd_sze = Vec2::new(dimensions.wnd_w, dimensions.wnd_h);
     let offs = 0.5 * wnd_sze;
     for (btn, mut tex, mut tf) in buttons.iter_mut() {
-        tf.scale = Vec2::splat(2. * blk).extend(tf.scale.z);
-        tex.color = match *input_state {
-            InputState::Keyboard => Color::NONE,
-            InputState::Mouse => BTN_COLOR,
-        };
+        if dimensions.is_changed() {
+            tf.scale = Vec2::splat(2. * dimensions.blk).extend(tf.scale.z);
+            match *btn {
+                Button::Escape => {
+                    tf.translation = (1.5 * dimensions.blk - offs).extend(tf.translation.z);
+                }
+                Button::Direction(dir) => {
+                    let offs = (Vec2::Y - Vec2::X) * offs;
+                    let pos = match dir {
+                        Direction::Down => Vec2::new(-3.5, 1.5),
+                        Direction::Left => Vec2::new(-5.5, 1.5),
+                        Direction::Right => Vec2::new(-1.5, 1.5),
+                        Direction::Up => Vec2::new(-3.5, 3.5),
+                    };
 
-        match *btn {
-            Button::Escape => {
-                tf.translation = (1.5 * blk - offs).extend(tf.translation.z);
-            }
-            Button::Direction(dir) => {
-                let offs = (Vec2::Y - Vec2::X) * offs;
-                let pos = match dir {
-                    Direction::Down => Vec2::new(-3.5, 1.5),
-                    Direction::Left => Vec2::new(-5.5, 1.5),
-                    Direction::Right => Vec2::new(-1.5, 1.5),
-                    Direction::Up => Vec2::new(-3.5, 3.5),
-                };
+                    tex.flip_x = dir.flip_x();
+                    tex.flip_y = dir.flip_y();
+                    tf.rotation = Quat::from_rotation_z(dir.angle());
+                    tf.translation = (pos * dimensions.blk - offs).extend(tf.translation.z);
+                }
+            };
+        }
 
-                tex.flip_x = dir.flip_x();
-                tex.flip_y = dir.flip_y();
-                tf.rotation = Quat::from_rotation_z(dir.angle());
-                tf.translation = (pos * blk - offs).extend(tf.translation.z);
-            }
-        };
+        if input_state.is_changed() {
+            tex.color = match *input_state {
+                InputState::Keyboard => Color::NONE,
+                InputState::Mouse => BTN_COLOR,
+            };
+        }
     }
 }
 
-fn update_foodspawner(
+fn update_foods(
     mut commands: Commands,
-    foods: Query<&Food>,
-    segments: Query<&Position, With<Segment>>,
+    query: Query<Entity, (With<Food>, Without<Remote>)>,
     sheets: Res<SpriteSheetAssets>,
-    mut spawners: Query<&mut FoodSpawner>,
+) {
+    for entity in query.iter() {
+        commands
+            .entity(entity)
+            .insert(Animation {
+                count: FOOD_ANIM_CNT,
+            })
+            .insert(Remote)
+            .insert_bundle(SpriteSheetBundle {
+                sprite: TextureAtlasSprite {
+                    index: 0,
+                    custom_size: Some(Vec2::ONE),
+                    ..Default::default()
+                },
+                texture_atlas: sheets.food.clone(),
+                transform: Transform::from_translation(Vec3::Z),
+                ..Default::default()
+            });
+    }
+}
+
+fn update_heads(
+    mut commands: Commands,
+    mut query: Query<Entity, (With<Head>, Without<Remote>)>,
+    sheets: Res<SpriteSheetAssets>,
+) {
+    for entity in query.iter_mut() {
+        commands
+            .entity(entity)
+            .insert(Animation {
+                count: HEAD_ANIM_CNT,
+            })
+            .insert(Remote)
+            .insert(HeadLocal {
+                color_dst: HEAD_COLOR,
+                color_src: HEAD_COLOR,
+                invincible: true,
+                timer: Timer::from_seconds(INVINCIBLE_DUR, true),
+            })
+            .insert_bundle(SpriteSheetBundle {
+                sprite: TextureAtlasSprite {
+                    color: HEAD_COLOR,
+                    custom_size: Some(Vec2::ONE),
+                    ..Default::default()
+                },
+                texture_atlas: sheets.pimmler.clone(),
+                transform: Transform::from_translation(Vec3::Z),
+                ..Default::default()
+            });
+    }
+}
+
+fn update_head_color(
+    mut query: Query<(&mut HeadLocal, &Score, &mut TextureAtlasSprite), With<Own>>,
     time: Res<Time>,
 ) {
-    if !foods.is_empty() {
-        return;
-    }
-
-    if let Some(mut spawner) = spawners.iter_mut().next() {
-        if !spawner.timer.tick(time.delta()).finished() {
-            return;
-        } else {
-            spawner.timer.reset();
-        }
-    } else {
-        return;
-    }
-
-    if segments.iter().count() >= (GRID_SIZE as usize).pow(2) {
-        return;
-    }
-
-    let mut pos = Position::rnd();
-    while segments.iter().any(|p| *p == pos) {
-        pos = Position::rnd();
-    }
-
-    commands
-        .spawn_bundle(SpriteSheetBundle {
-            sprite: TextureAtlasSprite {
-                custom_size: Some(Vec2::ONE),
-                ..Default::default()
-            },
-            texture_atlas: sheets.food.clone(),
-            transform: Transform::from_translation(Vec3::Z),
-            ..Default::default()
-        })
-        .insert(Animation {
-            count: FOOD_ANIM_CNT,
-        })
-        .insert(Food::default())
-        .insert(GameComponent)
-        .insert(pos);
-}
-
-fn update_head_color(mut query: Query<(&mut Head, &mut TextureAtlasSprite)>) {
-    for (mut head, mut sprite) in query.iter_mut() {
-        let mut src: Vec4 = sprite.color.into();
-        let dst: Vec4 = head.color.into();
+    for (mut head, score, mut sprite) in query.iter_mut() {
+        let mut src: Vec4 = head.color_src.into();
+        let dst: Vec4 = head.color_dst.into();
         let dir = Vec4::normalize(dst - src);
         if dir.is_finite() {
-            src += HEAD_COLOR_SPEED * dir
+            src += HEAD_COLOR_SPEED * dir;
+            head.color_src = src.into();
         };
 
         if dst.distance(src) < HEAD_COLOR_SPEED {
-            head.color = Color::hsl(random::<f32>() * 360.0, HEAD_COLOR_S, HEAD_COLOR_L);
+            head.color_dst = Color::hsl(random::<f32>() * 360.0, HEAD_COLOR_S, HEAD_COLOR_L);
         }
 
-        sprite.color = src.into();
+        if head.invincible && *score.level > 0 {
+            head.invincible = false;
+        } else if *score.level == 0 && head.timer.tick(time.delta()).just_finished() {
+            head.invincible = !head.invincible;
+        }
+
+        if head.invincible {
+            sprite.color = Color::WHITE;
+        } else {
+            sprite.color = src.into();
+        }
     }
 }
 
-fn update_head_dir(mut query: Query<(&Head, &mut TextureAtlasSprite, &mut Transform)>) {
+fn update_head_dir(
+    mut query: Query<
+        (&Head, &mut TextureAtlasSprite, &mut Transform),
+        Or<(Added<Remote>, Changed<Head>)>,
+    >,
+) {
     for (head, mut sprite, mut tf) in query.iter_mut() {
         sprite.flip_x = head.dir.flip_x();
         sprite.flip_y = head.dir.flip_y();
@@ -570,150 +571,123 @@ fn update_head_dir(mut query: Query<(&Head, &mut TextureAtlasSprite, &mut Transf
     }
 }
 
-fn update_head_position(
-    audio: Res<Audio>,
-    mut client: Client<Protocol, DefaultChannels>,
-    mut commands: Commands,
-    food: Query<(Entity, &Position), (With<Food>, Without<Segment>)>,
-    mut heads: Query<(Entity, &mut Head)>,
-    player: Res<Player>,
-    mut positions: Query<(&mut Position, &Segment), (With<Segment>, Without<Food>)>,
-    mut scores: Query<&mut Score>,
-    sheets: Res<SpriteSheetAssets>,
-    sounds: Res<AudioAssets>,
-    mut state: ResMut<State<AppState>>,
-    time: Res<Time>,
-    mut tracks: Query<&mut AudioTrack>,
+fn update_positions(
+    dimensions: Res<Dimensions>,
+    mut positions: Query<(ChangeTrackers<Position>, &Position, &mut Transform)>,
 ) {
-    if let Some((head_ent, mut head)) = heads.iter_mut().next() {
-        if !head.timer.tick(time.delta()).just_finished() {
-            return;
+    for (tracker, pos, mut tf) in positions.iter_mut() {
+        if dimensions.is_changed() || tracker.is_changed() {
+            let grid = Vec2::new(
+                dimensions.blk * (GRID_SIZE as f32),
+                dimensions.blk * ((GRID_SIZE + 1) as f32),
+            );
+
+            let offs = 0.5 * (grid - dimensions.blk);
+            tf.translation = (Vec2::new(*pos.x as f32, *pos.y as f32) * dimensions.blk - offs)
+                .extend(tf.translation.z);
         }
 
-        let mut seg_pos = positions
-            .iter()
-            .map(|(p, s)| (*p, *s))
-            .collect::<Vec<(Position, Segment)>>();
-        seg_pos.sort_by(|(_, a), (_, b)| a.index.cmp(&b.index));
-
-        for (mut pos, seg) in positions.iter_mut() {
-            if seg.index > 0 {
-                pos.clone_from(&seg_pos[(seg.index - 1) as usize].0);
-            }
-        }
-
-        {
-            let (mut head_pos, _) = positions.get_mut(head_ent).unwrap();
-            match head.dir {
-                Direction::Down => head_pos.y = head_pos.y.checked_sub(1).unwrap_or(GRID_SIZE - 1),
-                Direction::Left => head_pos.x = head_pos.x.checked_sub(1).unwrap_or(GRID_SIZE - 1),
-                Direction::Right => head_pos.x = (head_pos.x + 1) % GRID_SIZE,
-                Direction::Up => head_pos.y = (head_pos.y + 1) % GRID_SIZE,
-            }
-        }
-
-        let count = seg_pos.len();
-        let (head_pos, _) = positions.get(head_ent).unwrap();
-        let last = seg_pos[(count - 1) as usize].0;
-        for (food_ent, pos) in food.iter() {
-            if *pos == *head_pos {
-                let mut score = scores.iter_mut().next().unwrap();
-                score.count += 1;
-                audio.play(sounds.game_eat.clone());
-                commands.entity(food_ent).despawn();
-                commands
-                    .spawn_bundle(SpriteSheetBundle {
-                        sprite: TextureAtlasSprite {
-                            index: 0,
-                            custom_size: Some(Vec2::ONE),
-                            ..Default::default()
-                        },
-                        texture_atlas: sheets.diamond.clone(),
-                        transform: Transform::from_translation(Vec3::Z),
-                        ..Default::default()
-                    })
-                    .insert(Animation {
-                        count: SEGMENT_ANIM_CNT,
-                    })
-                    .insert(GameComponent)
-                    .insert(Segment { index: count })
-                    .insert(last);
-
-                let dur = head.timer.duration().mul_f32(0.95);
-                head.timer.set_duration(dur);
-
-                if let Ok(mut track) = tracks.get_single_mut() {
-                    track.rate = track.rate * 1.005;
-                    audio.set_playback_rate(track.rate);
-                }
-            }
-        }
-
-        for (pos, seg) in positions.iter() {
-            if seg.index != 0 && *pos == *head_pos {
-                if let Ok(score) = scores.get_single() {
-                    client.send_message(
-                        DefaultChannels::UnorderedReliable,
-                        &HighScore::new(player.name.clone(), score.count),
-                    );
-                }
-
-                state.set(AppState::Gameover).unwrap();
-            }
+        if dimensions.is_changed() {
+            tf.scale = Vec3::new(dimensions.blk, dimensions.blk, tf.scale.z);
         }
     }
 }
 
-fn update_positions(mut positions: Query<(&Position, &mut Transform)>, windows: Res<Windows>) {
-    let wnd = windows.get_primary().unwrap();
-    let blk = get_blocksize(f32::min(wnd.height(), wnd.width()));
-    for (pos, mut tf) in positions.iter_mut() {
-        tf.translation = transform_position(blk, *pos).extend(tf.translation.z);
-        tf.scale = Vec3::new(blk, blk, tf.scale.z);
+fn update_scorebar(mut bars: Query<&mut Style, With<ScoreBar>>, dimensions: Res<Dimensions>) {
+    if dimensions.is_changed() {
+        let mut style = bars.iter_mut().next().unwrap();
+        style.size = Size::new(
+            Val::Px(dimensions.blk * GRID_SIZE as f32),
+            Val::Px(dimensions.blk),
+        );
     }
-}
-
-fn update_scorebar(mut bars: Query<&mut Style, With<ScoreBar>>, windows: Res<Windows>) {
-    let wnd = windows.get_primary().unwrap();
-    let wnd_sze = f32::min(wnd.height(), wnd.width());
-    let blk = get_blocksize(wnd_sze);
-    let mut style = bars.iter_mut().next().unwrap();
-    style.size = Size::new(Val::Px(blk * GRID_SIZE as f32), Val::Px(blk));
 }
 
 fn update_scorebar_container(
     mut containers: Query<&mut Style, With<ScoreBarContainer>>,
-    windows: Res<Windows>,
+    dimensions: Res<Dimensions>,
 ) {
-    let wnd = windows.get_primary().unwrap();
-    let wnd_sze = f32::min(wnd.height(), wnd.width());
-    let blk = get_blocksize(wnd_sze);
-    let mut style = containers.iter_mut().next().unwrap();
-    style.size = Size::new(
-        Val::Px(blk * GRID_SIZE as f32),
-        Val::Px(blk + 0.5 * (wnd.height() - wnd_sze)),
-    );
+    if dimensions.is_changed() {
+        let mut style = containers.iter_mut().next().unwrap();
+        style.size = Size::new(
+            Val::Px(dimensions.blk * GRID_SIZE as f32),
+            Val::Px(dimensions.blk + 0.5 * (dimensions.wnd_h - dimensions.wnd_min)),
+        );
+    }
 }
 
-fn update_scorecoin(mut coins: Query<&mut Style, With<Coin>>, windows: Res<Windows>) {
-    let wnd = windows.get_primary().unwrap();
-    let wnd_sze = f32::min(wnd.height(), wnd.width());
-    let blk = get_blocksize(wnd_sze);
-    let mut style = coins.iter_mut().next().unwrap();
-    style.size = Size::new(Val::Px(blk), Val::Px(blk));
+fn update_scorecoin(mut coins: Query<&mut Style, With<Coin>>, dimensions: Res<Dimensions>) {
+    if dimensions.is_changed() {
+        let mut style = coins.iter_mut().next().unwrap();
+        style.size = Size::new(Val::Px(dimensions.blk), Val::Px(dimensions.blk));
+    }
+}
+
+fn update_scores(
+    audio: Res<Audio>,
+    query: Query<(ChangeTrackers<Score>, Entity, &Score)>,
+    mut scores: ResMut<Scores>,
+    sounds: Res<AudioAssets>,
+) {
+    scores.list.retain(|k, _| query.get(*k).is_ok());
+    for (tracker, entity, score) in query.iter() {
+        if tracker.is_changed() {
+            //TODO: why is this neccessary
+            if let Some(s) = scores.list.get_mut(&entity) {
+                if *s != *score.level {
+                    audio.play(sounds.game_eat.clone());
+                    *s = *score.level;
+                }
+            } else {
+                scores.list.insert(entity, *score.level);
+            }
+        }
+    }
 }
 
 fn update_scoretext(
+    dimensions: Res<Dimensions>,
     player: Res<Player>,
-    mut texts: Query<(&Score, &mut Text)>,
-    windows: Res<Windows>,
+    scores: Query<&Score, (Or<(Added<Own>, Changed<Score>)>, With<Own>)>,
+    mut texts: Query<&mut Text, With<ScoreText>>,
 ) {
-    let wnd = windows.get_primary().unwrap();
-    let wnd_sze = f32::min(wnd.height(), wnd.width());
-    let blk = get_blocksize(wnd_sze);
-    let (score, mut txt) = texts.iter_mut().next().unwrap();
-    txt.sections[0].style.font_size = blk;
-    txt.sections[0].value = format!("X{} {}", score.count, player.name);
+    let mut txt = texts.iter_mut().next().unwrap();
+    if dimensions.is_changed() {
+        txt.sections[0].style.font_size = dimensions.blk;
+    }
+
+    for score in scores.iter() {
+        txt.sections[0].value = format!("X{} {}", *score.level, player.name);
+    }
+}
+
+fn update_segments(
+    mut commands: Commands,
+    query: Query<(Entity, &Segment), Without<Remote>>,
+    sheets: Res<SpriteSheetAssets>,
+) {
+    for (entity, segment) in query.iter() {
+        if !*segment.synced {
+            continue;
+        }
+
+        commands
+            .entity(entity)
+            .insert(Animation {
+                count: SEGMENT_ANIM_CNT,
+            })
+            .insert(Remote)
+            .insert_bundle(SpriteSheetBundle {
+                sprite: TextureAtlasSprite {
+                    index: 0,
+                    custom_size: Some(Vec2::ONE),
+                    ..Default::default()
+                },
+                texture_atlas: sheets.diamond.clone(),
+                transform: Transform::from_translation(Vec3::Z),
+                ..Default::default()
+            });
+    }
 }
 
 fn update_sheets(mut query: Query<(&Animation, &mut TextureAtlasSprite)>, time: Res<Time>) {

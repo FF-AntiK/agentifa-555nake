@@ -317,7 +317,8 @@ fn setup(
     credit(&mut commands, "Connor Carpenter");
     credit(&mut commands, "for the incredible naia support");
     credit(&mut commands, "");
-    credit(&mut commands, "Agent 00 Bielefeld");
+    credit(&mut commands, "MDBsmash");
+    credit(&mut commands, "aka Agent 00 Bielefeld");
     credit(&mut commands, "aka One Man Mafia");
     credit(&mut commands, "alias Der Pimmler");
     credit(&mut commands, "");
