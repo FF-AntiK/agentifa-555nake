@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 bevy_ecs = { version = "0.8.1", default-features = false }
-naia-shared = "0.13.0"
+naia-shared = { git = "https://github.com/FF-AntiK/naia.git", branch = "ipv6" }
 rand = "0.8.5"

@@ -87,7 +87,6 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_kira_audio",
  "naia-bevy-client",
- "naia-shared",
  "obfstr",
  "rand",
  "wasm-bindgen",
@@ -110,7 +109,6 @@ dependencies = [
  "bevy",
  "frank",
  "naia-bevy-server",
- "naia-shared",
  "obfstr",
  "serde_json",
 ]
@@ -2855,8 +2853,7 @@ dependencies = [
 [[package]]
 name = "naia-bevy-client"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c2eff57e0f8970547dd621c7d014219d2687d632e2b623f8c4de37896c7056a"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -2867,8 +2864,7 @@ dependencies = [
 [[package]]
 name = "naia-bevy-server"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5961fbef4b1b7e6c0f37f54ca30540e4db0f9b319a125ef114590948eac433fb"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -2879,8 +2875,7 @@ dependencies = [
 [[package]]
 name = "naia-bevy-shared"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c996a0663b1a9da740d02ddbb4bf35fc8f93ddd92d047c5151411fd780621f8"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "bevy_ecs",
  "naia-shared",
@@ -2889,8 +2884,7 @@ dependencies = [
 [[package]]
 name = "naia-client"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e84cc504d95f3596894e3564b1f03cd5afac604cf33df40a095711780c6e8608"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "cfg-if 1.0.0",
  "log",
@@ -2901,8 +2895,7 @@ dependencies = [
 [[package]]
 name = "naia-client-socket"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f92e2d6095ec4703235f56985611f2131c6122eb27ee6dc1da9f8ea856ebb23a"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "cfg-if 1.0.0",
  "js-sys",
@@ -2920,8 +2913,7 @@ dependencies = [
 [[package]]
 name = "naia-derive"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5193ae09f7465016d2a13ef667d5cd071b799dcbc207fa59afae205db23cbdbe"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "naia-parse",
  "naia-serde-derive",
@@ -2933,14 +2925,12 @@ dependencies = [
 [[package]]
 name = "naia-parse"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "377bf5c71d506bbfdd9f2f795666c90fb4ef6d145c3e907848fb13a60e9c7964"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 
 [[package]]
 name = "naia-serde"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e098b2792f57a7cfa447130de0e79c4603533d7776d7806fee9bbf4b668e4d4"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "cfg-if 1.0.0",
  "log",
@@ -2950,8 +2940,7 @@ dependencies = [
 [[package]]
 name = "naia-serde-derive"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ff83039a5421ae8af0e62a2327935c16e487d56aa1059c18a6013a86be99cd"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "cfg-if 1.0.0",
  "log",
@@ -2961,8 +2950,7 @@ dependencies = [
 [[package]]
 name = "naia-server"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6310baf706beba0a048d39cd840007e58e3437c3e75eab272a98796e7ab4e57"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "fastrand",
  "log",
@@ -2974,8 +2962,7 @@ dependencies = [
 [[package]]
 name = "naia-server-socket"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6525730da6e5a9d75dfc7a355058a36df898afc30ab9583944153103562756e1"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "async-dup",
  "futures-channel",
@@ -2992,8 +2979,7 @@ dependencies = [
 [[package]]
 name = "naia-shared"
 version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb720b67ca18caa7dc92f3c9ff1481fe25aca095e090ad9afd585bef794ae2b1"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "bevy_ecs",
  "cfg-if 1.0.0",
@@ -3007,8 +2993,7 @@ dependencies = [
 [[package]]
 name = "naia-socket-shared"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec7b3d72be4877fcca744be1b87f30a04b54f9bd8c98e5b7aeef6c0e0bb8eb36"
+source = "git+https://github.com/FF-AntiK/naia.git?branch=ipv6#f2cea8d9104fa327dea0b193cb2213eeca98131d"
 dependencies = [
  "cfg-if 1.0.0",
  "js-sys",

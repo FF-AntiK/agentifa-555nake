@@ -7,8 +7,7 @@ use std::{
 use agentifa_555nake_protocol::protocol::{HighScore, HighScoreRank, Protocol};
 use bevy::prelude::{Commands, DetectChanges, Entity, Plugin, Query, Res, ResMut};
 use frank::rank_dense_greater;
-use naia_bevy_server::Server;
-use naia_shared::DefaultChannels;
+use naia_bevy_server::{shared::DefaultChannels, Server};
 
 use crate::Global;
 

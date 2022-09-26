@@ -21,8 +21,7 @@ use bevy::{
     window::Windows,
 };
 use bevy_kira_audio::{Audio, AudioControl};
-use naia_bevy_client::{events::MessageEvent, Client};
-use naia_shared::DefaultChannels;
+use naia_bevy_client::{events::MessageEvent, shared::DefaultChannels, Client};
 use rand::prelude::random;
 
 use crate::{AppState, ImageAssets, InputState, Player, SpriteSheetAssets};

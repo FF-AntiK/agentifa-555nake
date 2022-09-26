@@ -22,8 +22,10 @@ use game::GamePlugin;
 use gameover::GameOverPlugin;
 use load::LoadPlugin;
 use menu::MenuPlugin;
-use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, Stage};
-use naia_shared::{DefaultChannels, SharedConfig};
+use naia_bevy_client::{
+    shared::{DefaultChannels, SharedConfig},
+    Client, ClientConfig, Plugin as ClientPlugin, Stage,
+};
 use obfstr::obfstr;
 use register::RegisterPlugin;
 use vkeyboard::VKeyboardPlugin;

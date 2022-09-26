@@ -16,8 +16,7 @@ bevy = { version = "0.8.1", default-features = false, features = [
 ] }
 bevy_asset_loader = { version = "0.12.1", features = ["2d"] }
 bevy_kira_audio = "0.12.0"
-naia-bevy-client = "0.13.0"
-naia-shared = "0.13.0"
+naia-bevy-client = { git = "https://github.com/FF-AntiK/naia.git", branch = "ipv6" }
 obfstr = "0.4.1"
 rand = "0.8.5"
-wasm-bindgen = "0.2.82"
+wasm-bindgen = "0.2.83"

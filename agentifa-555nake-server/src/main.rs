@@ -15,9 +15,9 @@ use bevy::{
 use highscore::{HighScoreList, HighScorePlugin};
 use naia_bevy_server::{
     events::{AuthorizationEvent, ConnectionEvent, DisconnectionEvent, MessageEvent},
+    shared::{DefaultChannels, SharedConfig},
     Plugin as ServerPlugin, RoomKey, Server, ServerAddrs, ServerConfig, Stage, UserKey,
 };
-use naia_shared::{DefaultChannels, SharedConfig};
 use obfstr::obfstr;
 
 mod highscore;
@@ -252,6 +252,10 @@ fn update_foods(
     mut server: Server<Protocol, DefaultChannels>,
     time: Res<Time>,
 ) {
+    if global.player_heads.len() == 0 {
+        return;
+    }
+
     let delta = time.time_since_startup() - global.last_time;
     if global.food_timer.tick(delta).just_finished() {
         if positions.iter().count() >= GRID_SIZE.pow(2) {
