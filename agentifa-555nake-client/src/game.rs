@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use agentifa_555nake_protocol::protocol::{
-    DirCmd, Direction, Food, Head, Position, Protocol, QuitCmd, Score, Segment, StartCmd, GRID_SIZE,
+    DirCmd, Direction, Food, Head, Name, Position, Protocol, QuitCmd, Score, Segment, StartCmd,
+    GRID_SIZE,
 };
 
 use bevy::{
@@ -9,13 +10,13 @@ use bevy::{
     input::Input,
     math::{Quat, Vec2, Vec3, Vec4},
     prelude::{
-        Added, App, BuildChildren, Camera2dBundle, ChangeTrackers, Changed, Color, Commands,
-        Component, DespawnRecursiveExt, Entity, EventReader, KeyCode, MouseButton, NodeBundle, Or,
-        ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, State, SystemSet, TextBundle,
-        Timer, Transform, UiCameraConfig, With, Without,
+        default, Added, App, BuildChildren, Camera2dBundle, ChangeTrackers, Changed, Color,
+        Commands, Component, DespawnRecursiveExt, Entity, EventReader, KeyCode, MouseButton,
+        NodeBundle, Or, ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, State,
+        SystemSet, TextBundle, Timer, Transform, UiCameraConfig, With, Without,
     },
     sprite::{Sprite, SpriteBundle, SpriteSheetBundle, TextureAtlasSprite},
-    text::{Text, TextStyle},
+    text::{Text, Text2dBundle, TextAlignment, TextStyle},
     time::Time,
     ui::{AlignItems, JustifyContent, Size, Style, UiRect, Val},
     window::Windows,
@@ -39,6 +40,9 @@ const HEAD_COLOR_L: f32 = 0.5;
 const HEAD_COLOR_S: f32 = 1.;
 const HEAD_COLOR_SPEED: f32 = 0.01;
 const INVINCIBLE_DUR: f32 = 0.25;
+const NAME_COLOR: Color = Color::rgba(1.0, 0.08, 0.58, 0.5);
+const NAME_FONTSZE: f32 = 0.5;
+const NAME_ZIDX: f32 = 2.;
 const SCOREBAR_COLOR: Color = Color::GRAY;
 const SCORETEXT_COLOR: Color = Color::YELLOW;
 const SEGMENT_ANIM_CNT: usize = 6;
@@ -59,21 +63,26 @@ impl Plugin for GamePlugin {
                     .with_system(update_buttons.after(InputState::Mouse))
                     .with_system(update_dimensions)
                     .with_system(update_foods)
-                    .with_system(update_heads)
                     .with_system(update_head_color)
                     .with_system(update_head_dir)
+                    .with_system(update_heads)
+                    .with_system(update_name_positions)
+                    .with_system(update_names)
                     .with_system(update_positions)
-                    .with_system(update_scores)
-                    .with_system(update_segments)
-                    .with_system(update_sheets)
+                    .with_system(update_scales)
                     .with_system(update_scorebar)
                     .with_system(update_scorebar_container)
                     .with_system(update_scorecoin)
-                    .with_system(update_scoretext),
+                    .with_system(update_scores)
+                    .with_system(update_scoretext)
+                    .with_system(update_segments)
+                    .with_system(update_sheets)
+                    .with_system(update_texts),
             )
             .insert_resource(Dimensions::default())
-            .insert_resource(Scores {
-                list: HashMap::new(),
+            .insert_resource(Global {
+                names: HashMap::new(),
+                scores: HashMap::new(),
             });
     }
 }
@@ -104,6 +113,11 @@ enum Button {
 #[derive(Component)]
 struct Coin;
 
+struct Global {
+    names: HashMap<Entity, (Entity, usize, usize)>,
+    scores: HashMap<Entity, usize>,
+}
+
 #[derive(Component)]
 struct HeadLocal {
     color_dst: Color,
@@ -120,10 +134,6 @@ struct Own;
 
 #[derive(Component)]
 struct Remote;
-
-struct Scores {
-    list: HashMap<Entity, usize>,
-}
 
 #[derive(Component)]
 struct ScoreText;
@@ -151,10 +161,13 @@ fn assign_message(
 fn cleanup(
     mut client: Client<Protocol, DefaultChannels>,
     mut commands: Commands,
+    mut global: ResMut<Global>,
     local: Query<Entity, With<Local>>,
     remote: Query<Entity, With<Remote>>,
 ) {
     client.send_message(DefaultChannels::UnorderedReliable, &QuitCmd::new());
+    global.names.clear();
+    global.scores.clear();
     for entity in local.iter() {
         commands.entity(entity).despawn_recursive();
     }
@@ -284,11 +297,11 @@ fn setup(
                 color: BTN_COLOR,
                 custom_size: Some(Vec2::ONE),
                 index: BTN_DIR_IDX,
-                ..Default::default()
+                ..default()
             },
             texture_atlas: sheets.keys.clone(),
             transform: Transform::from_translation(2. * Vec3::Z),
-            ..Default::default()
+            ..default()
         })
         .insert(Button::Direction(dir))
         .insert(Local);
@@ -313,10 +326,10 @@ fn setup(
             sprite: Sprite {
                 color: BG_COLOR,
                 custom_size: Some(Vec2::ONE),
-                ..Default::default()
+                ..default()
             },
             texture: images.bg_game.clone(),
-            ..Default::default()
+            ..default()
         })
         .insert(Background)
         .insert(Local);
@@ -329,21 +342,21 @@ fn setup(
                 align_items: AlignItems::FlexEnd,
                 justify_content: JustifyContent::Center,
                 size: Size::new(Val::Percent(100.), Val::Percent(100.)),
-                ..Default::default()
+                ..default()
             },
-            ..Default::default()
+            ..default()
         })
         .with_children(|p| {
             // spawn score container
             p.spawn_bundle(NodeBundle {
                 color: Color::NONE.into(),
-                ..Default::default()
+                ..default()
             })
             .with_children(|p| {
                 // spawn score bar
                 p.spawn_bundle(NodeBundle {
                     color: SCOREBAR_COLOR.into(),
-                    ..Default::default()
+                    ..default()
                 })
                 .with_children(|p| {
                     // spawn coin image
@@ -351,7 +364,7 @@ fn setup(
                         color: Color::WHITE.into(),
                         image: images.diamond.clone().into(),
                         transform: Transform::from_scale(Vec3::new(0.9, 0.9, 1.)),
-                        ..Default::default()
+                        ..default()
                     })
                     .insert(Coin);
 
@@ -365,7 +378,7 @@ fn setup(
                                 font_size: 0.,
                             },
                         ),
-                        ..Default::default()
+                        ..default()
                     })
                     .insert(ScoreText);
                 })
@@ -386,11 +399,11 @@ fn setup(
                 color: BTN_COLOR,
                 custom_size: Some(Vec2::ONE),
                 index: BTN_ESC_IDX,
-                ..Default::default()
+                ..default()
             },
             texture_atlas: sheets.keys.clone(),
             transform: Transform::from_translation(2. * Vec3::Z),
-            ..Default::default()
+            ..default()
         })
         .insert(Button::Escape)
         .insert(Local);
@@ -416,17 +429,6 @@ fn update_background(
         let mut tf = backgrounds.single_mut();
         tf.translation.y = -0.5 * dimensions.blk;
         tf.scale = Vec2::splat(dimensions.blk * (GRID_SIZE as f32)).extend(tf.scale.z);
-    }
-}
-
-fn update_dimensions(mut dimensions: ResMut<Dimensions>, windows: Res<Windows>) {
-    if windows.is_changed() {
-        let wnd = windows.get_primary().unwrap();
-        dimensions.wnd_h = wnd.height();
-        dimensions.wnd_w = wnd.width();
-        dimensions.wnd_max = f32::max(dimensions.wnd_h, dimensions.wnd_w);
-        dimensions.wnd_min = f32::min(dimensions.wnd_h, dimensions.wnd_w);
-        dimensions.blk = dimensions.wnd_min / (GRID_SIZE + 1) as f32;
     }
 }
 
@@ -470,6 +472,17 @@ fn update_buttons(
     }
 }
 
+fn update_dimensions(mut dimensions: ResMut<Dimensions>, windows: Res<Windows>) {
+    if windows.is_changed() {
+        let wnd = windows.get_primary().unwrap();
+        dimensions.wnd_h = wnd.height();
+        dimensions.wnd_w = wnd.width();
+        dimensions.wnd_max = f32::max(dimensions.wnd_h, dimensions.wnd_w);
+        dimensions.wnd_min = f32::min(dimensions.wnd_h, dimensions.wnd_w);
+        dimensions.blk = dimensions.wnd_min / (GRID_SIZE + 1) as f32;
+    }
+}
+
 fn update_foods(
     mut commands: Commands,
     query: Query<Entity, (With<Food>, Without<Remote>)>,
@@ -486,42 +499,11 @@ fn update_foods(
                 sprite: TextureAtlasSprite {
                     index: 0,
                     custom_size: Some(Vec2::ONE),
-                    ..Default::default()
+                    ..default()
                 },
                 texture_atlas: sheets.food.clone(),
                 transform: Transform::from_translation(Vec3::Z),
-                ..Default::default()
-            });
-    }
-}
-
-fn update_heads(
-    mut commands: Commands,
-    mut query: Query<Entity, (With<Head>, Without<Remote>)>,
-    sheets: Res<SpriteSheetAssets>,
-) {
-    for entity in query.iter_mut() {
-        commands
-            .entity(entity)
-            .insert(Animation {
-                count: HEAD_ANIM_CNT,
-            })
-            .insert(Remote)
-            .insert(HeadLocal {
-                color_dst: HEAD_COLOR,
-                color_src: HEAD_COLOR,
-                invincible: true,
-                timer: Timer::from_seconds(INVINCIBLE_DUR, true),
-            })
-            .insert_bundle(SpriteSheetBundle {
-                sprite: TextureAtlasSprite {
-                    color: HEAD_COLOR,
-                    custom_size: Some(Vec2::ONE),
-                    ..Default::default()
-                },
-                texture_atlas: sheets.pimmler.clone(),
-                transform: Transform::from_translation(Vec3::Z),
-                ..Default::default()
+                ..default()
             });
     }
 }
@@ -570,6 +552,100 @@ fn update_head_dir(
     }
 }
 
+fn update_heads(
+    mut commands: Commands,
+    fonts: Res<FontAssets>,
+    mut global: ResMut<Global>,
+    mut query: Query<(Entity, &Name, &Position), (With<Head>, Without<Remote>)>,
+    sheets: Res<SpriteSheetAssets>,
+) {
+    for (entity, name, position) in query.iter_mut() {
+        commands
+            .entity(entity)
+            .insert(Animation {
+                count: HEAD_ANIM_CNT,
+            })
+            .insert(Remote)
+            .insert(HeadLocal {
+                color_dst: HEAD_COLOR,
+                color_src: HEAD_COLOR,
+                invincible: true,
+                timer: Timer::from_seconds(INVINCIBLE_DUR, true),
+            })
+            .insert_bundle(SpriteSheetBundle {
+                sprite: TextureAtlasSprite {
+                    color: HEAD_COLOR,
+                    custom_size: Some(Vec2::ONE),
+                    ..default()
+                },
+                texture_atlas: sheets.pimmler.clone(),
+                transform: Transform::from_translation(Vec3::Z),
+                ..default()
+            });
+
+        let name = commands
+            .spawn()
+            .insert(Local)
+            .insert(Position::new(*position.x, *position.y + 1))
+            .insert_bundle(Text2dBundle {
+                text: Text::from_section(
+                    (*name.text).clone(),
+                    TextStyle {
+                        color: NAME_COLOR,
+                        font: fonts.regular.clone(),
+                        ..default()
+                    },
+                )
+                .with_alignment(TextAlignment::TOP_CENTER),
+                transform: Transform::from_translation(NAME_ZIDX * Vec3::Z),
+                ..default()
+            })
+            .id();
+
+        global
+            .names
+            .insert(entity, (name, *position.x, *position.y));
+    }
+}
+
+fn update_name_positions(
+    mut commands: Commands,
+    mut global: ResMut<Global>,
+    query: Query<(ChangeTrackers<Position>, Entity, &Position), With<Name>>,
+) {
+    global.names.retain(|k, (v, _, _)| {
+        let retain = query.get(*k).is_ok();
+        if !retain {
+            commands.entity(*v).despawn_recursive();
+        }
+
+        retain
+    });
+    for (tracker, entity, position) in query.iter() {
+        if !tracker.is_changed() {
+            continue;
+        }
+
+        if let Some((_, x, y)) = global.names.get_mut(&entity) {
+            *x = *position.x;
+            *y = *position.y + 1;
+        }
+    }
+}
+
+fn update_names(global: Res<Global>, mut query: Query<&mut Position, With<Text>>) {
+    if !global.is_changed() {
+        return;
+    }
+
+    for (_, (entity, x, y)) in global.names.iter() {
+        if let Ok(mut position) = query.get_mut(*entity) {
+            *position.x = *x;
+            *position.y = *y;
+        }
+    }
+}
+
 fn update_positions(
     dimensions: Res<Dimensions>,
     mut positions: Query<(ChangeTrackers<Position>, &Position, &mut Transform)>,
@@ -585,10 +661,19 @@ fn update_positions(
             tf.translation = (Vec2::new(*pos.x as f32, *pos.y as f32) * dimensions.blk - offs)
                 .extend(tf.translation.z);
         }
+    }
+}
 
-        if dimensions.is_changed() {
-            tf.scale = Vec3::new(dimensions.blk, dimensions.blk, tf.scale.z);
-        }
+fn update_scales(
+    dimensions: Res<Dimensions>,
+    mut query: Query<&mut Transform, (With<Position>, Without<Text>)>,
+) {
+    if !dimensions.is_changed() {
+        return;
+    }
+
+    for mut tf in query.iter_mut() {
+        tf.scale = Vec3::new(dimensions.blk, dimensions.blk, tf.scale.z);
     }
 }
 
@@ -625,20 +710,20 @@ fn update_scorecoin(mut coins: Query<&mut Style, With<Coin>>, dimensions: Res<Di
 fn update_scores(
     audio: Res<Audio>,
     query: Query<(ChangeTrackers<Score>, Entity, &Score)>,
-    mut scores: ResMut<Scores>,
+    mut global: ResMut<Global>,
     sounds: Res<AudioAssets>,
 ) {
-    scores.list.retain(|k, _| query.get(*k).is_ok());
+    global.scores.retain(|k, _| query.get(*k).is_ok());
     for (tracker, entity, score) in query.iter() {
         if tracker.is_changed() {
             //TODO: why is this neccessary
-            if let Some(s) = scores.list.get_mut(&entity) {
+            if let Some(s) = global.scores.get_mut(&entity) {
                 if *s != *score.level {
                     audio.play(sounds.game_eat.clone());
                     *s = *score.level;
                 }
             } else {
-                scores.list.insert(entity, *score.level);
+                global.scores.insert(entity, *score.level);
             }
         }
     }
@@ -680,11 +765,11 @@ fn update_segments(
                 sprite: TextureAtlasSprite {
                     index: 0,
                     custom_size: Some(Vec2::ONE),
-                    ..Default::default()
+                    ..default()
                 },
                 texture_atlas: sheets.diamond.clone(),
                 transform: Transform::from_translation(Vec3::Z),
-                ..Default::default()
+                ..default()
             });
     }
 }
@@ -693,5 +778,15 @@ fn update_sheets(mut query: Query<(&Animation, &mut TextureAtlasSprite)>, time: 
     let cnt = 10.0 * time.seconds_since_startup();
     for (a, mut sheet) in query.iter_mut() {
         sheet.index = cnt as usize % a.count;
+    }
+}
+
+fn update_texts(dimensions: Res<Dimensions>, mut query: Query<&mut Text, With<Position>>) {
+    if !dimensions.is_changed() {
+        return;
+    }
+
+    for mut txt in query.iter_mut() {
+        txt.sections[0].style.font_size = NAME_FONTSZE * dimensions.blk;
     }
 }

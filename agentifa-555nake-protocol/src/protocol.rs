@@ -7,6 +7,7 @@ mod food;
 mod head;
 mod highscore;
 mod highscore_rank;
+mod name;
 mod position;
 mod quit_cmd;
 mod score;
@@ -21,6 +22,7 @@ pub use food::Food;
 pub use head::{Direction, Head};
 pub use highscore::HighScore;
 pub use highscore_rank::HighScoreRank;
+pub use name::Name;
 pub use position::Position;
 pub use quit_cmd::QuitCmd;
 pub use score::Score;
@@ -39,6 +41,7 @@ pub enum Protocol {
     Head(Head),
     HighScore(HighScore),
     HighScoreRank(HighScoreRank),
+    Name(Name),
     Position(Position),
     QuitCmd(QuitCmd),
     Score(Score),

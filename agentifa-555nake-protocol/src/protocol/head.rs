@@ -52,12 +52,11 @@ impl Direction {
 #[protocol_path = "crate::protocol::Protocol"]
 pub struct Head {
     pub dir: Property<Direction>,
-    pub name: Property<String>,
     pub running: Property<bool>,
 }
 
 impl Head {
-    pub fn new(name: String) -> Self {
-        return Head::new_complete(Direction::Up, name, false);
+    pub fn new() -> Self {
+        return Head::new_complete(Direction::Up, false);
     }
 }

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use agentifa_555nake_protocol::protocol::{
-    AssignMsg, Direction, Food, Head, Position, Protocol, QuitCmd, Score, Segment, Vincible,
+    AssignMsg, Direction, Food, Head, Name, Position, Protocol, QuitCmd, Score, Segment, Vincible,
     GRID_SIZE,
 };
 use bevy::{
@@ -101,7 +101,8 @@ fn command_message<'world, 'state>(
                 let entity = server
                     .spawn()
                     .enter_room(&global.main_room_key)
-                    .insert(Head::new((*msg.name).clone()))
+                    .insert(Head::new())
+                    .insert(Name::new((*msg.name).clone()))
                     .insert(Position::new(STARTPOS_X, STARTPOS_Y))
                     .insert(Score::new())
                     .id();
@@ -208,7 +209,7 @@ fn setup(mut commands: Commands, mut server: Server<Protocol, DefaultChannels>, 
 
 fn update_collisions(
     mut global: ResMut<Global>,
-    heads: Query<&Head>,
+    heads: Query<&Name>,
     mut highscore: ResMut<HighScoreList>,
     positions: Query<(Entity, &Position), With<Vincible>>,
     scores: Query<&Score>,
@@ -233,7 +234,7 @@ fn update_collisions(
     for user_key in to_despawn.iter() {
         let entity = *global.player_heads.get(user_key).unwrap();
         highscore.insert(
-            (*heads.get(entity).unwrap().name).clone(),
+            (*heads.get(entity).unwrap().text).clone(),
             *scores.get(entity).unwrap().level,
         );
 
