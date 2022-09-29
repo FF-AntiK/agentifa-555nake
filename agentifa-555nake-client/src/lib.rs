@@ -144,6 +144,10 @@ struct SpriteSheetAssets {
     #[asset(path = "image/diamond.png")]
     diamond: Handle<TextureAtlas>,
 
+    #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 6, rows = 1))]
+    #[asset(path = "image/easteregg.png")]
+    easteregg: Handle<TextureAtlas>,
+
     #[asset(texture_atlas(tile_size_x = 32.0, tile_size_y = 32.0, columns = 8, rows = 1))]
     #[asset(path = "image/brocc.png")]
     food: Handle<TextureAtlas>,
@@ -161,6 +165,10 @@ struct SpriteSheetAssets {
     ))]
     #[asset(path = "image/pimmler.png")]
     pimmler: Handle<TextureAtlas>,
+
+    #[asset(texture_atlas(tile_size_x = 500.0, tile_size_y = 487.0, columns = 6, rows = 1))]
+    #[asset(path = "image/pumpkin.png")]
+    pumpkin: Handle<TextureAtlas>,
 }
 
 fn connect(mut net_state: ResMut<State<NetState>>) {

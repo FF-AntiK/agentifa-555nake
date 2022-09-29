@@ -80,12 +80,14 @@ dependencies = [
 
 [[package]]
 name = "agentifa-555nake-client"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "agentifa-555nake-protocol",
  "bevy",
  "bevy_asset_loader",
  "bevy_kira_audio",
+ "chrono",
+ "holiday_de",
  "naia-bevy-client",
  "obfstr",
  "rand",
@@ -94,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "agentifa-555nake-protocol"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bevy_ecs",
  "naia-shared",
@@ -103,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "agentifa-555nake-server"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "agentifa-555nake-protocol",
  "bevy",
@@ -1219,8 +1221,13 @@ version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfd4d1b31faaa3a89d7934dbded3111da0d2ef28e3ebccdb4f0179f5929d1ef1"
 dependencies = [
+ "iana-time-zone",
+ "js-sys",
  "num-integer",
  "num-traits",
+ "time",
+ "wasm-bindgen",
+ "winapi",
 ]
 
 [[package]]
@@ -1299,6 +1306,12 @@ dependencies = [
  "bytes",
  "memchr",
 ]
+
+[[package]]
+name = "computus"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9eaa21df489b1e50af464db43c1fc69f60492060ac7baae3996fe8a5f476790"
 
 [[package]]
 name = "concurrent-queue"
@@ -1530,12 +1543,11 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.11"
+version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51887d4adc7b564537b15adcfb307936f8075dfcd5f00dde9a9f1d29383682bc"
+checksum = "edbafec5fa1f196ca66527c1b12c2ec4745ca14b50f1ad8f9f6f720b55d11fac"
 dependencies = [
  "cfg-if 1.0.0",
- "once_cell",
 ]
 
 [[package]]
@@ -2398,6 +2410,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "holiday_de"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4934674c5818f7823317d03ccf47b4a132944f3bd6c793d7c8df6a3b3f7293e"
+dependencies = [
+ "chrono",
+ "computus",
+]
+
+[[package]]
 name = "http"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2479,6 +2501,19 @@ dependencies = [
  "native-tls",
  "tokio",
  "tokio-native-tls",
+]
+
+[[package]]
+name = "iana-time-zone"
+version = "0.1.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd911b35d940d2bd0bea0f9100068e5b97b51a1cbe13d13382f132e0365257a0"
+dependencies = [
+ "android_system_properties",
+ "core-foundation-sys 0.8.3",
+ "js-sys",
+ "wasm-bindgen",
+ "winapi",
 ]
 
 [[package]]
@@ -3583,9 +3618,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.44"
+version = "1.0.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd7356a8122b6c4a24a82b278680c73357984ca2fc79a0f9fa6dea7dced7c58"
+checksum = "94e2ef8dbfc347b10c094890f778ee2e36ca9bb4262e86dc99cd217e35f3470b"
 dependencies = [
  "unicode-ident",
 ]
@@ -4395,6 +4430,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "time"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6db9e6914ab8b1ae1c260a4ae7a49b6c5611b40328a735b21862567685e73255"
+dependencies = [
+ "libc",
+ "wasi 0.10.0+wasi-snapshot-preview1",
+ "winapi",
+]
+
+[[package]]
 name = "tinyjson"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4731,6 +4777,12 @@ name = "wasi"
 version = "0.9.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
+
+[[package]]
+name = "wasi"
+version = "0.10.0+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "wasi"

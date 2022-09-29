@@ -11,17 +11,19 @@ use bevy::{
     math::{Quat, Vec2, Vec3, Vec4},
     prelude::{
         default, Added, App, BuildChildren, Camera2dBundle, ChangeTrackers, Changed, Color,
-        Commands, Component, DespawnRecursiveExt, Entity, EventReader, KeyCode, MouseButton,
-        NodeBundle, Or, ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, State,
-        SystemSet, TextBundle, Timer, Transform, UiCameraConfig, With, Without,
+        Commands, Component, DespawnRecursiveExt, Entity, EventReader, Handle, KeyCode,
+        MouseButton, NodeBundle, Or, ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut,
+        State, SystemSet, TextBundle, Timer, Transform, UiCameraConfig, With, Without,
     },
-    sprite::{Sprite, SpriteBundle, SpriteSheetBundle, TextureAtlasSprite},
+    sprite::{Sprite, SpriteBundle, SpriteSheetBundle, TextureAtlas, TextureAtlasSprite},
     text::{Text, Text2dBundle, TextAlignment, TextStyle},
     time::Time,
     ui::{AlignItems, JustifyContent, Size, Style, UiRect, Val},
     window::Windows,
 };
 use bevy_kira_audio::{Audio, AudioControl};
+use chrono::{offset::Local as LocalTime, Duration, NaiveDate};
+use holiday_de::{DateExt, GermanHoliday};
 use naia_bevy_client::{events::MessageEvent, shared::DefaultChannels, Client};
 use rand::prelude::random;
 
@@ -291,6 +293,22 @@ fn setup(
     sheets: Res<SpriteSheetAssets>,
     sounds: Res<AudioAssets>,
 ) {
+    let check_date = |d: NaiveDate| -> Option<GermanHoliday> {
+        if (d + Duration::days(1)).is_holiday(GermanHoliday::Allerheiligen) {
+            return Some(GermanHoliday::Allerheiligen);
+        } else if d.is_holiday(GermanHoliday::Gruendonnerstag) {
+            return Some(GermanHoliday::Gruendonnerstag);
+        } else if d.is_holiday(GermanHoliday::Karfreitag) {
+            return Some(GermanHoliday::Karfreitag);
+        } else if d.is_holiday(GermanHoliday::Ostermontag) {
+            return Some(GermanHoliday::Ostermontag);
+        } else if d.is_holiday(GermanHoliday::Ostersonntag) {
+            return Some(GermanHoliday::Ostersonntag);
+        }
+
+        None
+    };
+
     let spawn_dirbtn = |cmd: &mut Commands, dir: Direction| {
         cmd.spawn_bundle(SpriteSheetBundle {
             sprite: TextureAtlasSprite {
@@ -407,6 +425,18 @@ fn setup(
         })
         .insert(Button::Escape)
         .insert(Local);
+
+    // insert segment resource
+    commands.insert_resource(match check_date(LocalTime::now().naive_local().date()) {
+        Some(GermanHoliday::Allerheiligen) => sheets.pumpkin.clone(),
+        Some(
+            GermanHoliday::Gruendonnerstag
+            | GermanHoliday::Karfreitag
+            | GermanHoliday::Ostermontag
+            | GermanHoliday::Ostersonntag,
+        ) => sheets.easteregg.clone(),
+        _ => sheets.diamond.clone(),
+    });
 
     // spawn player
     client.send_message(
@@ -586,7 +616,7 @@ fn update_heads(
         let name = commands
             .spawn()
             .insert(Local)
-            .insert(Position::new(*position.x, *position.y + 1))
+            .insert(Position::new(*position.x, *position.y - 1))
             .insert_bundle(Text2dBundle {
                 text: Text::from_section(
                     (*name.text).clone(),
@@ -748,7 +778,7 @@ fn update_scoretext(
 fn update_segments(
     mut commands: Commands,
     query: Query<(Entity, &Segment), Without<Remote>>,
-    sheets: Res<SpriteSheetAssets>,
+    sheet: Res<Handle<TextureAtlas>>,
 ) {
     for (entity, segment) in query.iter() {
         if !*segment.synced {
@@ -767,7 +797,7 @@ fn update_segments(
                     custom_size: Some(Vec2::ONE),
                     ..default()
                 },
-                texture_atlas: sheets.diamond.clone(),
+                texture_atlas: sheet.clone(),
                 transform: Transform::from_translation(Vec3::Z),
                 ..default()
             });
